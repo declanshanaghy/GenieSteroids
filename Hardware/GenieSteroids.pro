@@ -2,8 +2,8 @@ EAGLE AutoRouter Statistics:
 
 Job           : /Users/dshanaghy/Workspace/PersonalProjects/GenieSteroids/Hardware/GenieSteroids.brd
 
-Start at      : 10:01:46 (6/3/11)
-End at        : 10:02:00 (6/3/11)
+Start at      : 10:05:31 (6/3/11)
+End at        : 10:05:45 (6/3/11)
 Elapsed time  : 00:00:14
 
 Signals       :    36   RoutingGrid: 8 mil  Layers: 2
