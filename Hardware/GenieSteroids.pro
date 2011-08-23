@@ -2,24 +2,24 @@ EAGLE AutoRouter Statistics:
 
 Job           : /Users/dshanaghy/Workspace/PersonalProjects/GenieSteroids/Hardware/GenieSteroids.brd
 
-Start at      : 09:47:38 (7/2/11)
-End at        : 09:47:52 (7/2/11)
-Elapsed time  : 00:00:13
+Start at      : 00:45:03 (8/20/11)
+End at        : 00:45:07 (8/20/11)
+Elapsed time  : 00:00:04
 
-Signals       :    39   RoutingGrid: 8 mil  Layers: 2
-Connections   :   101   predefined:  40 ( 0 Vias )
+Signals       :    52   RoutingGrid: 8 mil  Layers: 2
+Connections   :   121   predefined:  120 ( 8 Vias )
 
 Router memory :   1027404
 
 Passname          :     Route Optimize1 Optimize2 Optimize3 Optimize4
 
-Time per pass     :  00:00:02  00:00:03  00:00:03  00:00:02  00:00:03
+Time per pass     :  00:00:00  00:00:01  00:00:01  00:00:01  00:00:01
 Number of Ripups  :         0         0         0         0         0
 max. Level        :         0         0         0         0         0
 max. Total        :         0         0         0         0         0
 
-Routed            :        61        61        61        61        61
-Vias              :        22         6         7         7         8
+Routed            :         1         1         1         1         1
+Vias              :         2         1         1         1         1
 Resolution        :   100.0 %   100.0 %   100.0 %   100.0 %   100.0 %
 
 Final             : 100.0% finished

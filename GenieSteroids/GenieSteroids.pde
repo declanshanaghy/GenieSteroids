@@ -13,6 +13,9 @@
 /***************************
   DIGITAL PIN DEFINIDTIONS
 ****************************/
+#define PIN_LOCK     5
+#define PIN_LIGHT    6
+#define PIN_DOOR     7
 #define PIN_BUZZ     8
 
 #define PIN_LCD_BL_PWR   3
@@ -29,13 +32,14 @@
 #define LCD_CHAR_DEGREES 223
 
 #define STATE_IDLE 0
+#define RELAY_DELAY 100
 
 /*****************************
   GLOBAL VARS
 ******************************/
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, 
                   PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7);
-AnalogKeypad kpad = AnalogKeypad(PIN_KEYS, 10000);
+AnalogKeypad kpad = AnalogKeypad(PIN_KEYS, REPEAT_OFF, 10000, 1000);
 
 int hours=0, minutes=0, seconds=0;
 char sz_time[] = "00:00:00 AM";
@@ -49,6 +53,9 @@ void setup() {
   
   kpad.init();
   
+  pinMode(PIN_LIGHT, OUTPUT); 
+  pinMode(PIN_LOCK, OUTPUT); 
+  pinMode(PIN_DOOR, OUTPUT); 
   pinMode(PIN_BUZZ, OUTPUT); 
   pinMode(PIN_LCD_BL_PWR, OUTPUT); 
 
@@ -113,11 +120,14 @@ void procKeyPress() {
       break;
     case KEY_1:
       Serial.println("1");
+      toggleLockRelay();
       break;
     case KEY_2:
       Serial.println("2");
+      activateLightRelay();
       break;
     case KEY_3:
+      activateDoorRelay();
       Serial.println("3");
       break;
     case KEY_4:
@@ -139,6 +149,22 @@ void procKeyPress() {
       Serial.println("9");
       break;
   }
+}
+
+void toggleLockRelay(){
+  digitalWrite(PIN_LOCK, !digitalRead(PIN_LOCK));
+}
+
+void activateLightRelay(){
+  digitalWrite(PIN_LIGHT, HIGH);
+  delay(RELAY_DELAY);
+  digitalWrite(PIN_LIGHT, LOW);
+}
+
+void activateDoorRelay(){
+  digitalWrite(PIN_DOOR, HIGH);
+  delay(RELAY_DELAY);
+  digitalWrite(PIN_DOOR, LOW);
 }
 
 void displayTime() {

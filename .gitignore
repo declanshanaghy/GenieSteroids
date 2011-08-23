@@ -1,4 +1,5 @@
 .DS_Store
+export
 *.b#?
 *.s#?
 *.tmp
