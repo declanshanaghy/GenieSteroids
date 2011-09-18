@@ -4,3 +4,4 @@ export
 *.s#?
 *.tmp
 *.bak
+*~.*
