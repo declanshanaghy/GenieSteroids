@@ -5,18 +5,17 @@
 /***************************
   ANALOG PIN DEFINIDTIONS
 ****************************/
-#define PIN_KEYS    A0
-#define PIN_TEMP    A1
-#define PIN_LIGHT   A2
-#define PIN_LOCK    A3
+#define SENSOR_KEYS    A0
+#define SENSOR_TEMP    A1
+#define SENSOR_LIGHT   A2
 
 /***************************
   DIGITAL PIN DEFINIDTIONS
 ****************************/
-#define PIN_LOCK     5
-#define PIN_LIGHT    6
-#define PIN_DOOR     7
-#define PIN_BUZZ     8
+#define RELAY_LOCK     5
+#define RELAY_LIGHT    6
+#define RELAY_DOOR     7
+#define PIN_BUZZ       8
 
 #define PIN_LCD_BL_PWR   3
 #define PIN_LCD_RS      13
@@ -32,19 +31,23 @@
 #define LCD_CHAR_DEGREES 223
 
 #define STATE_IDLE 0
-#define RELAY_DELAY 100
+#define RELAY_DELAY 200
 
 /*****************************
   GLOBAL VARS
 ******************************/
-LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, 
-                  PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7);
-AnalogKeypad kpad = AnalogKeypad(PIN_KEYS, REPEAT_OFF, 10000, 1000);
+LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D7, 
+                  PIN_LCD_D6, PIN_LCD_D5, PIN_LCD_D4);
 
-int hours=0, minutes=0, seconds=0;
+AnalogKeypad kpad = AnalogKeypad(SENSOR_KEYS, REPEAT_OFF, 10000, 1000);
+
 char sz_time[] = "00:00:00 AM";
-float temperatureC, temperatureF;
 char sz_temp[] = "999F";
+
+int light=0;
+int hours=0, minutes=0, seconds=0;
+float temperatureC, temperatureF;
+
 int state = STATE_IDLE;
 
 void setup() {
@@ -53,9 +56,9 @@ void setup() {
   
   kpad.init();
   
-  pinMode(PIN_LIGHT, OUTPUT); 
-  pinMode(PIN_LOCK, OUTPUT); 
-  pinMode(PIN_DOOR, OUTPUT); 
+  pinMode(RELAY_LIGHT, OUTPUT); 
+  pinMode(RELAY_LOCK, OUTPUT); 
+  pinMode(RELAY_DOOR, OUTPUT); 
   pinMode(PIN_BUZZ, OUTPUT); 
   pinMode(PIN_LCD_BL_PWR, OUTPUT); 
 
@@ -63,7 +66,7 @@ void setup() {
   setupChronoDot();
   
   state = STATE_IDLE;
-  //tone(PIN_BUZZ, 4000, 150);
+  //tone(PIN_BUZZ, 4000, 100);
 }
 
 void setupLCD() {
@@ -96,6 +99,7 @@ void loop() {
   if (tNow - tReading > 500) {
     readTime();
     readTemp();
+    readLight();
   
     displayTime();
     displayTemp();
@@ -152,19 +156,19 @@ void procKeyPress() {
 }
 
 void toggleLockRelay(){
-  digitalWrite(PIN_LOCK, !digitalRead(PIN_LOCK));
+  digitalWrite(RELAY_LOCK, !digitalRead(RELAY_LOCK));
 }
 
 void activateLightRelay(){
-  digitalWrite(PIN_LIGHT, HIGH);
+  digitalWrite(RELAY_LIGHT, HIGH);
   delay(RELAY_DELAY);
-  digitalWrite(PIN_LIGHT, LOW);
+  digitalWrite(RELAY_LIGHT, LOW);
 }
 
 void activateDoorRelay(){
-  digitalWrite(PIN_DOOR, HIGH);
+  digitalWrite(RELAY_DOOR, HIGH);
   delay(RELAY_DELAY);
-  digitalWrite(PIN_DOOR, LOW);
+  digitalWrite(RELAY_DOOR, LOW);
 }
 
 void displayTime() {
@@ -198,13 +202,19 @@ void readTime() {
       sprintf(sz_time, "%02d:%02d:%02d AM", hours, minutes, seconds);
     else
       sprintf(sz_time, "%02d:%02d:%02d PM", hours-12, minutes, seconds);
-    //Serial.print("Time: '"); Serial.print(sz_time); Serial.println("'");
+    //Serial.print("Time: '"); Serial.println(sz_time);
   }
+}
+
+void readLight() {
+  //getting the voltage reading from the light sensor
+  light = analogRead(SENSOR_LIGHT);  
+  //Serial.print("LIGHT: "); Serial.println(light);
 }
 
 void readTemp() {
   //getting the voltage reading from the temperature sensor
-  int reading = analogRead(PIN_TEMP);  
+  int reading = analogRead(SENSOR_TEMP);  
    
   // converting that reading to voltage, for 3.3v arduino use 3.3
   float voltage = reading * 5.0;
@@ -222,7 +232,7 @@ void readTemp() {
   temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;
   //Serial.print(temperatureF); Serial.println(" degress F");
   sprintf(sz_temp, "%3d%c", int(temperatureF), LCD_CHAR_DEGREES);
-  //Serial.print("TEMP: "); Serial.print(sz_temp);
+  //Serial.print("TEMP: "); Serial.println(sz_temp);
 }
 
 void enableLCD() {
