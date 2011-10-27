@@ -7,3 +7,4 @@ export
 *~.*
 AutoSave_*
 *.gcode
+*.s3g

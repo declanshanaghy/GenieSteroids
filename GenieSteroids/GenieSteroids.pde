@@ -60,7 +60,6 @@ void setup() {
   pinMode(RELAY_LOCK, OUTPUT); 
   pinMode(RELAY_DOOR, OUTPUT); 
   pinMode(PIN_BUZZ, OUTPUT); 
-  pinMode(PIN_LCD_BL_PWR, OUTPUT); 
 
   setupLCD();  
   setupChronoDot();
@@ -75,6 +74,7 @@ void setupLCD() {
   // Print a message to the LCD.
   lcd.print("Genie Steroids!");
   
+  pinMode(PIN_LCD_BL_PWR, OUTPUT); 
   enableLCD();
 }
 
@@ -115,12 +115,16 @@ void procKeyPress() {
       break;
     case KEY_STAR:
       Serial.println("*");
+      lcd.clear();
       break;
     case KEY_POUND:
-      Serial.println("#");
+      Serial.println("#");      
       break;
     case KEY_0:
       Serial.println("0");
+      disableLCD();
+      delay(1000);
+      enableLCD();
       break;
     case KEY_1:
       Serial.println("1");
