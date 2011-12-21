@@ -1,9 +1,13 @@
 #include <EEPROM.h>
 #include <Wire.h>
 #include <LiquidCrystal.h>
-#include <LcdMenu.h>
-#include <AnalogKeypad.h>
+
 #include <Chronodot.h>
+#include <Bounce.h>
+
+#include <AnalogKeypad.h>
+#include <LcdMenu.h>
+
 #include "GeniePrefs.h"
 
 /***************************
@@ -16,6 +20,7 @@
 /***************************
   DIGITAL PIN DEFINIDTIONS
 ****************************/
+#define PIN_DOOR_SENS  2
 #define RELAY_LOCK     5
 #define RELAY_LIGHT    6
 #define RELAY_DOOR     7
@@ -55,10 +60,11 @@
 ******************************/
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D7, 
                   PIN_LCD_D6, PIN_LCD_D5, PIN_LCD_D4);
-LcdMenu menu(lcd, LCD_COLS, LCD_ROWS);
 AnalogKeypad kpad = AnalogKeypad(SENSOR_KEYS, REPEAT_OFF, 10000, 1000);
 Chronodot RTC;
 GeniePrefs prefs;
+Bounce door(PIN_DOOR_SENS, 100);
+boolean doorOpen = false;
 
 char sz_time[] = "00:00:00 AM";
 char sz_temp[] = "999F";
@@ -80,19 +86,20 @@ int state = STATE_IDLE;
 #define MENU_8  '7'
 #define MENU_9  '7'
 
-LcdMenuEntry mStayOpen(MENU_1, "Stay Open", NULL);
-LcdMenuEntry mAutoClose(MENU_2, "Close Timer", NULL);
-LcdMenuEntry mLockTimes(MENU_3, "Auto Lock", NULL);
-LcdMenuEntry mSettings(MENU_4, "Settings", NULL);
+LcdMenu menu(lcd, LCD_COLS, LCD_ROWS);
+LcdMenuEntry mStayOpen(MENU_1,  "Stay Open       ", NULL);
+LcdMenuEntry mAutoClose(MENU_2, "Close Timer     ", NULL);
+LcdMenuEntry mLockTimes(MENU_3, "Auto Lock       ", NULL);
+LcdMenuEntry mSettings(MENU_4,  "Settings        ", NULL);
 
-LcdMenuEntry mLock1(MENU_1, "Lock 1", NULL);
-LcdMenuEntry mLock2(MENU_2, "Lock 2", NULL);
+LcdMenuEntry mLock1(MENU_1, "Lock 1          ", NULL);
+LcdMenuEntry mLock2(MENU_2, "Lock 2          ", NULL);
 
-LcdMenuEntry mDate(MENU_1, "Date & Time", NULL);
-LcdMenuEntry mBacklight(MENU_2, "Backlight Timer", NULL);
-LcdMenuEntry mKeySound(MENU_3, "Key Sound", NULL);
-LcdMenuEntry mBootSound(MENU_4, "Boot Sound", NULL);
-LcdMenuEntry mLightCal(MENU_5, "Light Cal", NULL);
+LcdMenuEntry mDate(MENU_1,      "Date & Time     ", NULL);
+LcdMenuEntry mBacklight(MENU_2, "Backlight       ", NULL);
+LcdMenuEntry mKeySound(MENU_3,  "Key Sound       ", NULL);
+LcdMenuEntry mBootSound(MENU_4, "Boot Sound      ", NULL);
+LcdMenuEntry mLightCal(MENU_5,  "Light Cal       ", NULL);
 
 void setupMenu() {
   menu.setHead(&mStayOpen);
@@ -111,13 +118,15 @@ void setupMenu() {
 }
 
 void setup() {
-  state = STATE_IDLE;
-
   Wire.begin();
   Serial.begin(115200);
+
+  Serial.println("setup()");  
+  state = STATE_IDLE;
   
   kpad.init();
   
+  pinMode(PIN_DOOR_SENS, INPUT); 
   pinMode(RELAY_LIGHT, OUTPUT); 
   pinMode(RELAY_LOCK, OUTPUT); 
   pinMode(RELAY_DOOR, OUTPUT); 
@@ -133,12 +142,12 @@ void setup() {
 
 void setupLCD() {
   // set up the LCD's number of columns and rows: 
-  lcd.begin(16, 2);
+  lcd.begin(LCD_COLS, LCD_ROWS);
 
   pinMode(PIN_LCD_BL_PWR, OUTPUT); 
   enableLCD();
   
-  displayMainScreen();
+  displayMainHeader();
 }
 
 void setupChronoDot() {
@@ -165,8 +174,9 @@ void procLoopState() {
   }
   
   if (state != STATE_IDLE && tNow - tLastKeyPress > INPUT_IDLE_TIMEOUT) {
+    Serial.print("Idle timeout: "); Serial.println(tNow - tLastKeyPress);
     state = STATE_IDLE;
-    displayMainScreen();
+    displayMainHeader();
   }
     
   //Things we do in every state
@@ -177,6 +187,7 @@ void procLoopKeyPress() {
   int k = kpad.readKey();
   if ( k != KEY_NONE ) {
     tLastKeyPress = tNow;
+    Serial.print("key: code="); Serial.println(k);
     switch (state) {
       case STATE_IDLE:
         displayMenu();
@@ -217,6 +228,12 @@ void procLoopStateMenu() {
 }
 
 void procLoopStateIdle() {
+  /*
+   * Actions to take in idle state.
+   * We only read and act on the door switch in idle state.
+   * So as to not go into auto close mode while the user 
+   * is interacting with the device.
+   */
   if (tNow - tLastIdleReading > IDLE_LOOP_UPDATE) {
     int hours=0, minutes=0, seconds=0;
 
@@ -227,12 +244,27 @@ void procLoopStateIdle() {
     displayTemp(TEMP_F, temp);
 
     tLastIdleReading = tNow;
+    
+    boolean doorOpenNow = isDoorOpen();
+    if ( doorOpen != doorOpenNow ) {
+      doorOpen = doorOpenNow;
+      displayMainHeader();
+    }
   }
 }
 
-void displayMainScreen() {
-  lcd.clear();
-  lcd.print("Genie Steroids!");
+boolean isDoorOpen() {
+  /* door mag switch is active low */
+  door.update();
+  return !door.read();
+}
+
+void displayMainHeader() {
+  lcd.home();
+  if ( doorOpen ) 
+    lcd.print("   Door Open    ");
+  else
+    lcd.print("Genie Steroids! ");
 }
 
 void h_menu1() {

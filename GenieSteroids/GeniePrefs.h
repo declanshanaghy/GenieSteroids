@@ -1,7 +1,11 @@
 #ifndef GENIRPREFS_H
 #define GENIRPREFS_H
 
-#include <Arduino.h>
+#if ARDUINO >= 100
+  #include <Arduino.h>
+#else
+  #include <WProgram.h>
+#endif
 #include <EEPROM.h>
 
 #define CFG_WRITTEN 0
