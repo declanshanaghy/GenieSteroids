@@ -39,6 +39,7 @@
 ****************************/
 #define STATE_IDLE 0
 #define STATE_MENU 1
+#define STATE_HANDLER 2
 
 /***************************
   OTHER CONSTANTS
@@ -86,8 +87,11 @@ int state = STATE_IDLE;
 #define MENU_8  '7'
 #define MENU_9  '7'
 
-LcdMenu menu(lcd, LCD_COLS, LCD_ROWS);
-LcdMenuEntry mStayOpen(MENU_1,  "Stay Open       ", NULL);
+LcdMenuHandler* currentHandler;
+LcdMenuHandler hdlrStayOpen;
+
+LcdMenu menu(&lcd, LCD_COLS, LCD_ROWS);
+LcdMenuEntry mStayOpen(MENU_1,  "Stay Open       ", &hdlrStayOpen);
 LcdMenuEntry mAutoClose(MENU_2, "Close Timer     ", NULL);
 LcdMenuEntry mLockTimes(MENU_3, "Auto Lock       ", NULL);
 LcdMenuEntry mSettings(MENU_4,  "Settings        ", NULL);
@@ -115,6 +119,8 @@ void setupMenu() {
   mBacklight.appendSibling(&mKeySound);
   mKeySound.appendSibling(&mBootSound);
   mBootSound.appendSibling(&mLightCal);
+  
+  currentHandler = NULL;
 }
 
 void setup() {
@@ -137,7 +143,27 @@ void setup() {
   setupChronoDot();
 
   prefs.load();
-  //tone(PIN_BUZZ, 4000, 100);
+  bootTone();
+}
+
+void bootTone() {
+  tone(PIN_BUZZ, 4000, 50);
+}
+
+void keyTone() {
+  tone(PIN_BUZZ, 3000, 10);
+}
+
+void confirmTone() {
+  tone(PIN_BUZZ, 1000, 100);
+  delay(100);
+  tone(PIN_BUZZ, 2000, 200);
+}
+
+void cancelTone() {
+  tone(PIN_BUZZ, 1000, 100);
+  delay(100);
+  tone(PIN_BUZZ, 500, 200);
 }
 
 void setupLCD() {
@@ -175,36 +201,83 @@ void procLoopState() {
   
   if (state != STATE_IDLE && tNow - tLastKeyPress > INPUT_IDLE_TIMEOUT) {
     Serial.print("Idle timeout: "); Serial.println(tNow - tLastKeyPress);
-    state = STATE_IDLE;
-    displayMainHeader();
+    setIdle();
   }
     
   //Things we do in every state
   readLight();    
 }
 
+void setIdle() {
+  state = STATE_IDLE;
+  menu.reset();
+  lcd.clear();
+  displayMainHeader();
+}
+
 void procLoopKeyPress() {
   int k = kpad.readKey();
+  char c = kpad.getLastKeyChar();
+    
   if ( k != KEY_NONE ) {
+    keyTone();
+    Serial.print("Menu key: code="); Serial.println(k);
+    Serial.print("          char="); Serial.println(c);
+    
     tLastKeyPress = tNow;
-    Serial.print("key: code="); Serial.println(k);
     switch (state) {
       case STATE_IDLE:
         displayMenu();
         break;
       case STATE_MENU:
-        procLoopStateMenu();
+        procLoopStateMenu(k, c);
+        break;
+      case STATE_HANDLER:
+        procLoopStateHandler(k, c);
         break;
     }
   }
 }
 
-void procLoopStateMenu() {
-  int k = kpad.getLastKey();
-  char c = kpad.getLastKeyChar();
-  Serial.print("Menu key: code="); Serial.println(k);
-  Serial.print("          char="); Serial.println(c);
+void procLoopStateHandler(int k, char c) {
+  if (k == KEY_STAR) {
+    clearHandler(false);
+  }
+  else {
+    if ( currentHandler != NULL && currentHandler->wantsControl() ) {
+      Serial.println("Sending key to handler");
+      if (! currentHandler->procKeyPress(k, c)) {
+        clearHandler(true);
+      }
+      else {
+        Serial.println("Handler retained control");
+      }
+    }
+  }
+}
+
+void clearHandler(boolean confirmed) {
+  lcd.clear();
+
+  if ( confirmed ) {
+    Serial.println("Handler relinquished control");
+    confirmTone();  
+    currentHandler->dispayConfirmation();
+  }  
+  else {
+    Serial.println("Canceling handler");
+    cancelTone();  
+    currentHandler->dispayCancellation();
+  }  
+
+  currentHandler->relinquishControl();
+  currentHandler = NULL;  
   
+  delay(500);
+  displayMenu();
+}
+
+void procLoopStateMenu(int k, char c) {
   if ( k != KEY_NONE ) {
     switch (k) {
       case KEY_STAR:
@@ -212,16 +285,23 @@ void procLoopStateMenu() {
         displayMenu();
         break;
       case KEY_0:
-        menu.levelUp();
-        displayMenu();
+        if ( menu.levelUp() )
+          displayMenu();
+        else
+          setIdle();
         break;
       case KEY_POUND:
         menu.page();
         displayMenu();
         break;
       default:
-        if ( menu.selectEntry(c) != NULL )
-          displayMenu();
+        LcdMenuHandler* h = menu.procKeyPress(c);
+        if ( h != NULL ) {
+          currentHandler = h;
+          state = STATE_HANDLER;
+          currentHandler->takeControl(&lcd);
+          procLoopStateHandler(k, c);
+        }
         break;
     }
   }
@@ -267,12 +347,8 @@ void displayMainHeader() {
     lcd.print("Genie Steroids! ");
 }
 
-void h_menu1() {
-  Serial.println("Menu 1 handler");
-}
-
-void h_menu42() {
-  Serial.println("Menu 4-2 handler");
+void h_setDateTime() {
+  Serial.println("Set Date & Time");
 }
 
 void displayMenu() {

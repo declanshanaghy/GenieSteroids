@@ -1,5 +1,5 @@
-#ifndef GENIRPREFS_H
-#define GENIRPREFS_H
+#ifndef GENIEPREFS_H
+#define GENIEPREFS_H
 
 #if ARDUINO >= 100
   #include <Arduino.h>
@@ -23,5 +23,5 @@ public:
                       //be auto closed (0 = off)
 };
 
-#endif //GENIRPREFS_H
+#endif //GENIEPREFS_H
 
