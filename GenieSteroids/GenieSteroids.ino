@@ -9,6 +9,7 @@
 #include <LcdMenu.h>
 
 #include "GeniePrefs.h"
+#include "GenieSteroidsHandler.h"
 
 /***************************
   ANALOG PIN DEFINIDTIONS
@@ -35,7 +36,20 @@
 #define PIN_LCD_D7       9
 
 /***************************
-  States
+  KEYPAD
+****************************/
+#define MENU_1  '1'
+#define MENU_2  '2'
+#define MENU_3  '3'
+#define MENU_4  '4'
+#define MENU_5  '5'
+#define MENU_6  '6'
+#define MENU_7  '7'
+#define MENU_8  '8'
+#define MENU_9  '9'
+
+/***************************
+  STATES
 ****************************/
 #define STATE_IDLE 0
 #define STATE_MENU 1
@@ -77,51 +91,27 @@ long tLastKeyPress = 0;
 
 int state = STATE_IDLE;
 
-#define MENU_1  '1'
-#define MENU_2  '2'
-#define MENU_3  '3'
-#define MENU_4  '4'
-#define MENU_5  '5'
-#define MENU_6  '6'
-#define MENU_7  '7'
-#define MENU_8  '7'
-#define MENU_9  '7'
-
 LcdMenuHandler* currentHandler;
-LcdMenuHandler hdlrStayOpen;
+KeySoundHandler hdlrKeySound(CFG_KEY_SOUNDS);
+BootSoundHandler hdlrBootSound(CFG_BOOT_SOUND);
 
 LcdMenu menu(&lcd, LCD_COLS, LCD_ROWS);
-LcdMenuEntry mStayOpen(MENU_1,  "Stay Open       ", &hdlrStayOpen);
-LcdMenuEntry mAutoClose(MENU_2, "Close Timer     ", NULL);
-LcdMenuEntry mLockTimes(MENU_3, "Auto Lock       ", NULL);
-LcdMenuEntry mSettings(MENU_4,  "Settings        ", NULL);
+LcdMenuEntry mOverrideOpen(MENU_1, "Override Open", NULL);
+LcdMenuEntry mAutoClose(MENU_2, "Close Timer", NULL);
+LcdMenuEntry mLockTimes(MENU_3, "Auto Lock", NULL);
+LcdMenuEntry mSettings(MENU_4, "Settings", NULL);
 
-LcdMenuEntry mLock1(MENU_1, "Lock 1          ", NULL);
-LcdMenuEntry mLock2(MENU_2, "Lock 2          ", NULL);
+LcdMenuEntry mLock1(MENU_1, "Lock 1", NULL);
+LcdMenuEntry mLock2(MENU_2, "Lock 2", NULL);
 
-LcdMenuEntry mDate(MENU_1,      "Date & Time     ", NULL);
-LcdMenuEntry mBacklight(MENU_2, "Backlight       ", NULL);
-LcdMenuEntry mKeySound(MENU_3,  "Key Sound       ", NULL);
-LcdMenuEntry mBootSound(MENU_4, "Boot Sound      ", NULL);
-LcdMenuEntry mLightCal(MENU_5,  "Light Cal       ", NULL);
+LcdMenuEntry mOpenDuration(MENU_1, "Open Duration   ", NULL);
+LcdMenuEntry mDate(MENU_2, "Date & Time", NULL);
+LcdMenuEntry mBacklight(MENU_3, "Backlight", NULL);
+LcdMenuEntry mSounds(MENU_4, "Sounds", NULL);
 
-void setupMenu() {
-  menu.setHead(&mStayOpen);
-  mStayOpen.appendSibling(&mAutoClose);
-  mAutoClose.appendSibling(&mLockTimes);
-  mLockTimes.appendSibling(&mSettings);
-
-  mLockTimes.setChild(&mLock1);
-  mLock1.appendSibling(&mLock2);
-
-  mSettings.setChild(&mDate);
-  mDate.appendSibling(&mBacklight);
-  mBacklight.appendSibling(&mKeySound);
-  mKeySound.appendSibling(&mBootSound);
-  mBootSound.appendSibling(&mLightCal);
-  
-  currentHandler = NULL;
-}
+LcdMenuEntry mKeyPress(MENU_1, "Key Press", &hdlrKeySound);
+LcdMenuEntry mBootSound(MENU_2, "Boot Sound", &hdlrBootSound);
+LcdMenuEntry mMenuSound(MENU_3, "Menu Sounds", NULL);
 
 void setup() {
   Wire.begin();
@@ -138,32 +128,64 @@ void setup() {
   pinMode(RELAY_DOOR, OUTPUT); 
   pinMode(PIN_BUZZ, OUTPUT); 
 
+  prefs.load();  
+  
   setupLCD();  
   setupMenu();
   setupChronoDot();
 
-  prefs.load();
   bootTone();
 }
 
+void loop() {
+  tNow = millis();
+  procLoopKeyPress();
+  procLoopState();
+}
+
+void setupMenu() {
+  menu.setHead(&mOverrideOpen);
+  mOverrideOpen.appendSibling(&mAutoClose);
+  mAutoClose.appendSibling(&mLockTimes);
+  mLockTimes.appendSibling(&mSettings);
+
+  mLockTimes.setChild(&mLock1);
+  mLock1.appendSibling(&mLock2);
+
+  mSettings.setChild(&mOpenDuration);
+  mOpenDuration.appendSibling(&mDate);
+  mDate.appendSibling(&mBacklight);
+  mBacklight.appendSibling(&mSounds);
+  
+  mSounds.setChild(&mKeyPress);
+  mKeyPress.appendSibling(&mBootSound);
+  mBootSound.appendSibling(&mMenuSound);
+    
+  currentHandler = NULL;
+  
+  hdlrKeySound.setValue(prefs.readBoolean(hdlrKeySound.getIdent(), KEY_SOUNDS_DEFAULT));
+  hdlrBootSound.setValue(prefs.readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
+}
+
 void bootTone() {
-  tone(PIN_BUZZ, 4000, 50);
+//  tone(PIN_BUZZ, 4000, 50);
 }
 
 void keyTone() {
-  tone(PIN_BUZZ, 3000, 10);
+  if ( prefs.keySounds )
+    tone(PIN_BUZZ, 3000, 10);
 }
 
 void confirmTone() {
-  tone(PIN_BUZZ, 1000, 100);
-  delay(100);
-  tone(PIN_BUZZ, 2000, 200);
+//  tone(PIN_BUZZ, 1000, 100);
+//  delay(100);
+//  tone(PIN_BUZZ, 2000, 200);
 }
 
 void cancelTone() {
-  tone(PIN_BUZZ, 1000, 100);
-  delay(100);
-  tone(PIN_BUZZ, 500, 200);
+//  tone(PIN_BUZZ, 1000, 100);
+//  delay(100);
+//  tone(PIN_BUZZ, 500, 200);
 }
 
 void setupLCD() {
@@ -186,12 +208,6 @@ void setupChronoDot() {
   }
 }
 
-void loop() {
-  tNow = millis();
-  procLoopKeyPress();
-  procLoopState();
-}
-
 void procLoopState() {
   switch (state) {
     case STATE_IDLE:
@@ -204,7 +220,7 @@ void procLoopState() {
     setIdle();
   }
     
-  //Things we do in every state
+  //Things to do in every state
   readLight();    
 }
 
@@ -261,6 +277,8 @@ void clearHandler(boolean confirmed) {
 
   if ( confirmed ) {
     Serial.println("Handler relinquished control");
+    prefs.writeShort(currentHandler->getIdent(), currentHandler->getValue());
+    prefs.load();
     confirmTone();  
     currentHandler->dispayConfirmation();
   }  
@@ -298,6 +316,7 @@ void procLoopStateMenu(int k, char c) {
         LcdMenuHandler* h = menu.procKeyPress(c);
         if ( h != NULL ) {
           currentHandler = h;
+          Serial.print("Assigned handler: "); Serial.println((int)currentHandler);
           state = STATE_HANDLER;
           currentHandler->takeControl(&lcd);
           procLoopStateHandler(k, c);
