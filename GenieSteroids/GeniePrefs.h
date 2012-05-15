@@ -14,14 +14,14 @@
 #define CFG_OPEN_DURATION  20
 #define CFG_BACKLIGHT      30
 #define CFG_BOOT_SOUND     40
-#define CFG_KEY_SOUNDS     50
+#define CFG_KEY_SOUND      50
 #define CFG_BACKLIGHT      60
-#define CFG_OTHER_SOUNDS   70
+#define CFG_OTHER_SOUND    70
 
 #define OPEN_DURATION_DEFAULT  10
-#define KEY_SOUNDS_DEFAULT     true
+#define KEY_SOUND_DEFAULT      true
 #define BOOT_SOUND_DEFAULT     true
-#define OTHER_SOUNDS_DEFAULT   true
+#define OTHER_SOUND_DEFAULT    true
 
 class GeniePrefs {
 public:

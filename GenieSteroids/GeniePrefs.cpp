@@ -2,9 +2,9 @@
 
 GeniePrefs::GeniePrefs() {
   openDuration = OPEN_DURATION_DEFAULT;
-  keySounds = KEY_SOUNDS_DEFAULT;
+  keySounds = KEY_SOUND_DEFAULT;
   bootSound = BOOT_SOUND_DEFAULT;
-  otherSounds = OTHER_SOUNDS_DEFAULT;
+  otherSounds = OTHER_SOUND_DEFAULT;
 }
 
 short GeniePrefs::readShort(int address, short vDefault) {
@@ -32,36 +32,52 @@ void GeniePrefs::writeBoolean(int address, boolean value) {
 }
 
 void GeniePrefs::load() {
-  Serial.println("GeniePrefs::load...");
-  print();
+//#if DBG
+//  Serial.println("GeniePrefs::load...");
+//#endif
   openDuration = readShort(CFG_OPEN_DURATION, OPEN_DURATION_DEFAULT);
-  keySounds = readBoolean(CFG_KEY_SOUNDS, KEY_SOUNDS_DEFAULT);
+  keySounds = readBoolean(CFG_KEY_SOUND, KEY_SOUND_DEFAULT);
   bootSound = readBoolean(CFG_BOOT_SOUND, BOOT_SOUND_DEFAULT);
-  otherSounds = readBoolean(CFG_OTHER_SOUNDS, OTHER_SOUNDS_DEFAULT);
-  Serial.println("GeniePrefs::load complete");
+  otherSounds = readBoolean(CFG_OTHER_SOUND, OTHER_SOUND_DEFAULT);
+//#if DBG
+//  Serial.println("GeniePrefs::load complete");
+//#endif
+  print();
 }
 
 void GeniePrefs::save() {
-  Serial.println("GeniePrefs::save...");
+//#if DBG
+//  Serial.println("GeniePrefs::save...");
+//#endif
   print();
   writeShort(CFG_OPEN_DURATION, openDuration);
-  writeBoolean(CFG_KEY_SOUNDS, keySounds);
+  writeBoolean(CFG_KEY_SOUND, keySounds);
   writeBoolean(CFG_BOOT_SOUND, bootSound);
-  writeBoolean(CFG_OTHER_SOUNDS, otherSounds);
-  Serial.println("GeniePrefs::save complete");
+  writeBoolean(CFG_OTHER_SOUND, otherSounds);
+//#if DBG
+//  Serial.println("GeniePrefs::save complete");
+//#endif
 }
 
 void GeniePrefs::resetToDefault() {
-  Serial.println("GeniePrefs::resetToDefaults...");
+//#if DBG
+//  Serial.println("GeniePrefs::resetToDefaults...");
+//#endif
   openDuration = OPEN_DURATION_DEFAULT;
-  keySounds = KEY_SOUNDS_DEFAULT;
-  bootSound = KEY_SOUNDS_DEFAULT;
-  otherSounds = KEY_SOUNDS_DEFAULT;
+  keySounds = KEY_SOUND_DEFAULT;
+  bootSound = BOOT_SOUND_DEFAULT;
+  otherSounds = OTHER_SOUND_DEFAULT;
   save();
-  Serial.println("GeniePrefs::resetToDefaults complete");
+//#if DBG
+//  Serial.println("GeniePrefs::resetToDefaults complete");
+//#endif
 }
 
 void GeniePrefs::print() {
+//#if DBG
   Serial.print("openDuration = "); Serial.println(openDuration);
   Serial.print("keySounds = "); Serial.println(keySounds);
+  Serial.print("bootSound = "); Serial.println(bootSound);
+  Serial.print("otherSounds = "); Serial.println(otherSounds);
+//#endif
 }
