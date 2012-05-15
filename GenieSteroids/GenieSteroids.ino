@@ -7,9 +7,12 @@
 
 #include <AnalogKeypad.h>
 #include <LcdMenu.h>
+#include <avr/pgmspace.h>
 
 #include "GeniePrefs.h"
 #include "GenieSteroidsHandler.h"
+
+//#define DBG 0
 
 /***************************
   ANALOG PIN DEFINIDTIONS
@@ -71,6 +74,23 @@
 #define INPUT_IDLE_TIMEOUT 10000
 
 /*****************************
+  PROGRAM MEMORY
+******************************/
+//PROGMEM prog_char string_override[] = "Override Open";
+//PROGMEM prog_char string_close[] = "Close Timer";
+//PROGMEM prog_char string_autolock[] = "Auto Lock";
+//PROGMEM prog_char string_settings[] = "Settings";
+//PROGMEM prog_char string_lock1[] = "Lock 1";
+//PROGMEM prog_char string_lock2[] = "Lock 2";
+//PROGMEM prog_char string_openduration[] = "Open Duration";
+//PROGMEM prog_char string_datetime[] = "Date & Time";
+//PROGMEM prog_char string_backlight[] = "Backlight";
+//PROGMEM prog_char string_sounds[] = "Sounds";
+//PROGMEM prog_char string_keypress[] = "Key Press";
+//PROGMEM prog_char string_bootsound[] = "Boot Sound";
+//PROGMEM prog_char string_menusounds[] = "Menu Sounds";
+
+/*****************************
   GLOBAL VARS
 ******************************/
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D7, 
@@ -89,11 +109,12 @@ long tNow = 0;
 long tLastIdleReading = 0;
 long tLastKeyPress = 0;
 
-int state = STATE_IDLE;
+short state = STATE_IDLE;
 
 LcdMenuHandler* currentHandler;
-KeySoundHandler hdlrKeySound(CFG_KEY_SOUNDS);
-BootSoundHandler hdlrBootSound(CFG_BOOT_SOUND);
+GenericSoundHandler hdlrKeySound(CFG_KEY_SOUND);
+GenericSoundHandler hdlrBootSound(CFG_BOOT_SOUND);
+GenericSoundHandler hdlrOtherSound(CFG_OTHER_SOUND);
 
 LcdMenu menu(&lcd, LCD_COLS, LCD_ROWS);
 LcdMenuEntry mOverrideOpen(MENU_1, "Override Open", NULL);
@@ -109,15 +130,20 @@ LcdMenuEntry mDate(MENU_2, "Date & Time", NULL);
 LcdMenuEntry mBacklight(MENU_3, "Backlight", NULL);
 LcdMenuEntry mSounds(MENU_4, "Sounds", NULL);
 
-LcdMenuEntry mKeyPress(MENU_1, "Key Press", &hdlrKeySound);
-LcdMenuEntry mBootSound(MENU_2, "Boot Sound", &hdlrBootSound);
-LcdMenuEntry mMenuSound(MENU_3, "Menu Sounds", NULL);
+LcdMenuEntry mKeySound(MENU_1, "Key Press", &hdlrKeySound);
+LcdMenuEntry mBootSound(MENU_2, "Boot Up", &hdlrBootSound);
+LcdMenuEntry mOtherSound(MENU_3, "Confirmations", &hdlrOtherSound);
 
 void setup() {
+  //free_memory();
+  
   Wire.begin();
   Serial.begin(115200);
 
-  Serial.println("setup()");  
+//#if DBG
+//  Serial.println("setup()");  
+//#endif
+
   state = STATE_IDLE;
   
   kpad.init();
@@ -157,18 +183,20 @@ void setupMenu() {
   mDate.appendSibling(&mBacklight);
   mBacklight.appendSibling(&mSounds);
   
-  mSounds.setChild(&mKeyPress);
-  mKeyPress.appendSibling(&mBootSound);
-  mBootSound.appendSibling(&mMenuSound);
+  mSounds.setChild(&mKeySound);
+  mKeySound.appendSibling(&mBootSound);
+  mBootSound.appendSibling(&mOtherSound);
     
   currentHandler = NULL;
   
-  hdlrKeySound.setValue(prefs.readBoolean(hdlrKeySound.getIdent(), KEY_SOUNDS_DEFAULT));
+  hdlrKeySound.setValue(prefs.readBoolean(hdlrKeySound.getIdent(), KEY_SOUND_DEFAULT));
   hdlrBootSound.setValue(prefs.readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
+  hdlrOtherSound.setValue(prefs.readBoolean(hdlrOtherSound.getIdent(), OTHER_SOUND_DEFAULT));
 }
 
 void bootTone() {
-//  tone(PIN_BUZZ, 4000, 50);
+  if ( prefs.bootSound )
+    tone(PIN_BUZZ, 4000, 50);
 }
 
 void keyTone() {
@@ -177,15 +205,19 @@ void keyTone() {
 }
 
 void confirmTone() {
-//  tone(PIN_BUZZ, 1000, 100);
-//  delay(100);
-//  tone(PIN_BUZZ, 2000, 200);
+  if ( prefs.otherSounds ) {
+    tone(PIN_BUZZ, 1000, 100);
+    delay(100);
+    tone(PIN_BUZZ, 2000, 200);
+  }
 }
 
 void cancelTone() {
-//  tone(PIN_BUZZ, 1000, 100);
-//  delay(100);
-//  tone(PIN_BUZZ, 500, 200);
+  if ( prefs.otherSounds ) {
+    tone(PIN_BUZZ, 1000, 100);
+    delay(100);
+    tone(PIN_BUZZ, 500, 200);
+  }
 }
 
 void setupLCD() {
@@ -202,7 +234,9 @@ void setupChronoDot() {
   RTC.begin();
 
   if (! RTC.isrunning()) {
-    Serial.println("RTC is NOT running!");
+//#if DBG
+//    Serial.println("RTC is NOT running!");
+//#endif
     // following line sets the RTC to the date & time this sketch was compiled
     RTC.adjust(DateTime(__DATE__, __TIME__));
   }
@@ -216,7 +250,9 @@ void procLoopState() {
   }
   
   if (state != STATE_IDLE && tNow - tLastKeyPress > INPUT_IDLE_TIMEOUT) {
-    Serial.print("Idle timeout: "); Serial.println(tNow - tLastKeyPress);
+//#if DBG
+//    Serial.print("Idle timeout: "); Serial.println(tNow - tLastKeyPress);
+//#endif
     setIdle();
   }
     
@@ -237,8 +273,10 @@ void procLoopKeyPress() {
     
   if ( k != KEY_NONE ) {
     keyTone();
-    Serial.print("Menu key: code="); Serial.println(k);
-    Serial.print("          char="); Serial.println(c);
+//#if DBG
+//    Serial.print("Menu key: code="); Serial.println(k);
+//    Serial.print("          char="); Serial.println(c);
+//#endif
     
     tLastKeyPress = tNow;
     switch (state) {
@@ -261,12 +299,16 @@ void procLoopStateHandler(int k, char c) {
   }
   else {
     if ( currentHandler != NULL && currentHandler->wantsControl() ) {
-      Serial.println("Sending key to handler");
+//#if DBG
+//      Serial.println("Sending key to handler");
+//#endif
       if (! currentHandler->procKeyPress(k, c)) {
         clearHandler(true);
       }
       else {
-        Serial.println("Handler retained control");
+//#if DBG
+//        Serial.println("Handler retained control");
+//#endif
       }
     }
   }
@@ -276,14 +318,18 @@ void clearHandler(boolean confirmed) {
   lcd.clear();
 
   if ( confirmed ) {
-    Serial.println("Handler relinquished control");
+//#if DBG
+//    Serial.println("Handler relinquished control");
+//#endif
     prefs.writeShort(currentHandler->getIdent(), currentHandler->getValue());
     prefs.load();
     confirmTone();  
     currentHandler->dispayConfirmation();
   }  
   else {
-    Serial.println("Canceling handler");
+//#if DBG
+//    Serial.println("Canceling handler");
+//#endif
     cancelTone();  
     currentHandler->dispayCancellation();
   }  
@@ -316,7 +362,9 @@ void procLoopStateMenu(int k, char c) {
         LcdMenuHandler* h = menu.procKeyPress(c);
         if ( h != NULL ) {
           currentHandler = h;
-          Serial.print("Assigned handler: "); Serial.println((int)currentHandler);
+//#if DBG
+//          Serial.print("Assigned handler: "); Serial.println((int)currentHandler);
+//#endif
           state = STATE_HANDLER;
           currentHandler->takeControl(&lcd);
           procLoopStateHandler(k, c);
@@ -367,7 +415,9 @@ void displayMainHeader() {
 }
 
 void h_setDateTime() {
-  Serial.println("Set Date & Time");
+//#if DBG
+//  Serial.println("Set Date & Time");
+//#endif
 }
 
 void displayMenu() {
@@ -396,16 +446,22 @@ void displayTime(const int hours, const int minutes, const int seconds) {
     sprintf(sz_time, "%02d:%02d:%02d AM", hours, minutes, seconds);
   else
     sprintf(sz_time, "%02d:%02d:%02d PM", hours-12, minutes, seconds);
-  //Serial.print("Time: '"); Serial.println(sz_time);
+//#if DBG
+//  Serial.print("Time: '"); Serial.println(sz_time);
+//#endif
   
   lcd.setCursor(0, 1);
   lcd.print(sz_time);
 }
 
 void displayTemp(const int scale, const float temp) {
-  //Serial.print(temperatureF); Serial.println(" degress F");
+//#if DBG
+//  Serial.print(temperatureF); Serial.println(" degress F");
+//#endif
   sprintf(sz_temp, "%3d%c", int(temp), LCD_CHAR_DEGREES);
-  //Serial.print("TEMP: "); Serial.println(sz_temp);
+//#if DBG
+//  Serial.print("TEMP: "); Serial.println(sz_temp);
+//#endif
   
   lcd.setCursor(12, 1);
   lcd.print(sz_temp);
@@ -421,7 +477,9 @@ void readTime(int &hours, int &minutes, int &seconds) {
 void readLight() {
   //getting the voltage reading from the light sensor
   light = analogRead(SENSOR_LIGHT);  
-  //Serial.print("LIGHT: "); Serial.println(light);
+//#if DBG
+//  Serial.print("LIGHT: "); Serial.println(light);
+//#endif
 }
 
 float readTemp(const int scale) {
@@ -433,17 +491,23 @@ float readTemp(const int scale) {
   voltage /= 1024.0; 
    
   // print out the voltage
-  //Serial.print(voltage); Serial.println(" volts");
+//#if DBG
+//  Serial.print(voltage); Serial.println(" volts");
+//#endif
    
   // now print out the temperature
   float t = (voltage - 0.5) * 100 ;  //converting from 10 mv per degree wit 500 mV offset
                                      //to degrees ((volatge - 500mV) times 100)
-  //Serial.print(t); Serial.println(" degress C");
+//#if DBG
+//  Serial.print(t); Serial.println(" degress C");
+//#endif
   
   if ( scale == 1 ) {
     // now convert to Fahrenheight
     t = (t * 9.0 / 5.0) + 32.0;
-    //Serial.print(t); Serial.println(" degress C");
+//#if DBG
+//    Serial.print(t); Serial.println(" degress C");
+//#endif
   }
   return t;
 }
@@ -451,12 +515,16 @@ float readTemp(const int scale) {
 void enableLCD() {
     lcd.display();
     digitalWrite(PIN_LCD_BL_PWR, HIGH);
-    Serial.println("LCD ON");
+//#if DBG
+//    Serial.println("LCD ON");
+//#endif
 }
 
 void disableLCD() {
     lcd.noDisplay();
     digitalWrite(PIN_LCD_BL_PWR, LOW);
-    Serial.println("LCD OFF");
+//#if DBG
+//    Serial.println("LCD OFF");
+//#endif
 }
 

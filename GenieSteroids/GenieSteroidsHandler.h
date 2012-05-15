@@ -5,18 +5,11 @@
 #include <LiquidCrystal.h>
 #include "LcdMenuHandler.h"
 
-class KeySoundHandler : public LcdMenuHandler {
+class GenericSoundHandler : public LcdMenuHandler {
 public:
-  KeySoundHandler(int ident) : LcdMenuHandler(ident) {};
-  boolean procKeyPress(int k, char c);
-  void dispayConfirmation(); 
-};
-
-class BootSoundHandler : public LcdMenuHandler {
-public:
-  BootSoundHandler(int ident) : LcdMenuHandler(ident) {};
-//  boolean procKeyPress(int k, char c);
-//  void dispayConfirmation(); 
+  GenericSoundHandler(int ident) : LcdMenuHandler(ident) {};
+  virtual boolean procKeyPress(int k, char c);
+  virtual void dispayConfirmation(void);
 };
 
 #endif //GENIESTEROIDSHANDLER_H

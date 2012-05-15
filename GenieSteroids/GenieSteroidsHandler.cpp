@@ -2,48 +2,25 @@
 #include "GenieSteroidsHandler.h"
 
 /********************************/
-/*    KeySoundHandler
+/*    GenericSoundHandler
 /********************************/
-boolean KeySoundHandler::procKeyPress(int k, char c) {
+boolean GenericSoundHandler::procKeyPress(int k, char c) {
   this->val = !this->val;
   return false;
 }
 
-void KeySoundHandler::dispayConfirmation() {
+void GenericSoundHandler::dispayConfirmation() {
   if ( this->val ) {
     lcd->setCursor(5, 0);
     lcd->print("=-==-=");      
     lcd->setCursor(2, 1);
-    lcd->print("Key sounds on");      
+    lcd->print("  Sound on");
   }
   else {
     lcd->setCursor(5, 0);
     lcd->print("=-==-=");      
     lcd->setCursor(1, 1);
-    lcd->print("Key sounds off");      
+    lcd->print("   Sound off");      
   }
 }
-
-/********************************/
-/*    BootSoundHandler
-/********************************/
-//boolean BootSoundHandler::procKeyPress(int k, char c) {
-//  this->val = !this->val;
-//  return false;
-//}
-//
-//void BootSoundHandler::dispayConfirmation() {
-//  if ( this->val ) {
-//    lcd->setCursor(5, 0);
-//    lcd->print("=-==-=");      
-//    lcd->setCursor(2, 1);
-//    lcd->print("Boot sound on");      
-//  }
-//  else {
-//    lcd->setCursor(5, 0);
-//    lcd->print("=-==-=");      
-//    lcd->setCursor(1, 1);
-//    lcd->print("Boot sound off");      
-//  }
-//}
 
