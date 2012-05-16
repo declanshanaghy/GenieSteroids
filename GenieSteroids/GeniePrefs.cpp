@@ -8,15 +8,38 @@ GeniePrefs::GeniePrefs() {
 }
 
 short GeniePrefs::readShort(int address, short vDefault) {
-  short val = EEPROM.read(address);
-  if ( val == 255 )
-    return vDefault;
-  else
-    return val;
+  short v = EEPROM.read(address);
+  if ( v == DEFAULT_SHORT )
+    v = vDefault;
+  return v;
 }
 
 void GeniePrefs::writeShort(int address, short value) {
   EEPROM.write(address, value);
+}
+
+int GeniePrefs::readInt(int address, int vDefault) {
+  int v;
+  EEPROM_readAnything(address, v);
+  if ( v == DEFAULT_INT )
+    v = vDefault;
+  return v;
+}
+
+void GeniePrefs::writeInt(int address, int value) {
+  EEPROM_writeAnything(address, value);
+}
+
+long GeniePrefs::readLong(int address, long vDefault) {
+  long v;
+  EEPROM_readAnything(address, v);
+  if ( v == DEFAULT_LONG )
+    v = vDefault;
+  return v;
+}
+
+void GeniePrefs::writeLong(int address, long value) {
+  EEPROM_writeAnything(address, value);
 }
 
 boolean GeniePrefs::readBoolean(int address, boolean vDefault) {
@@ -75,9 +98,15 @@ void GeniePrefs::resetToDefault() {
 
 void GeniePrefs::print() {
 //#if DBG
-  Serial.print("openDuration = "); Serial.println(openDuration);
-  Serial.print("keySounds = "); Serial.println(keySounds);
-  Serial.print("bootSound = "); Serial.println(bootSound);
-  Serial.print("otherSounds = "); Serial.println(otherSounds);
+//  Serial.print("openDuration = "); Serial.println(openDuration);
+//  Serial.print("keySounds = "); Serial.println(keySounds);
+//  Serial.print("bootSound = "); Serial.println(bootSound);
+//  Serial.print("otherSounds = "); Serial.println(otherSounds);
 //#endif
+}
+
+void GeniePrefs::flush() {
+  for (int i=0; i < 512; i++) {
+    EEPROM.write(i, DEFAULT_SHORT);
+  }
 }

@@ -7,7 +7,7 @@
 
 #include <AnalogKeypad.h>
 #include <LcdMenu.h>
-#include <avr/pgmspace.h>
+//#include <avr/pgmspace.h>
 
 #include "GeniePrefs.h"
 #include "GenieSteroidsHandler.h"
@@ -93,6 +93,8 @@
 /*****************************
   GLOBAL VARS
 ******************************/
+const DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
+
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D7, 
                   PIN_LCD_D6, PIN_LCD_D5, PIN_LCD_D4);
 AnalogKeypad kpad = AnalogKeypad(SENSOR_KEYS, REPEAT_OFF, 10000, 1000);
@@ -115,6 +117,7 @@ LcdMenuHandler* currentHandler;
 GenericSoundHandler hdlrKeySound(CFG_KEY_SOUND);
 GenericSoundHandler hdlrBootSound(CFG_BOOT_SOUND);
 GenericSoundHandler hdlrOtherSound(CFG_OTHER_SOUND);
+DateTimeHandler hdlrDateTime(CFG_UNUSED);
 
 LcdMenu menu(&lcd, LCD_COLS, LCD_ROWS);
 LcdMenuEntry mOverrideOpen(MENU_1, "Override Open", NULL);
@@ -126,7 +129,7 @@ LcdMenuEntry mLock1(MENU_1, "Lock 1", NULL);
 LcdMenuEntry mLock2(MENU_2, "Lock 2", NULL);
 
 LcdMenuEntry mOpenDuration(MENU_1, "Open Duration   ", NULL);
-LcdMenuEntry mDate(MENU_2, "Date & Time", NULL);
+LcdMenuEntry mDate(MENU_2, "Date & Time", &hdlrDateTime);
 LcdMenuEntry mBacklight(MENU_3, "Backlight", NULL);
 LcdMenuEntry mSounds(MENU_4, "Sounds", NULL);
 
@@ -135,8 +138,6 @@ LcdMenuEntry mBootSound(MENU_2, "Boot Up", &hdlrBootSound);
 LcdMenuEntry mOtherSound(MENU_3, "Confirmations", &hdlrOtherSound);
 
 void setup() {
-  //free_memory();
-  
   Wire.begin();
   Serial.begin(115200);
 
@@ -154,11 +155,10 @@ void setup() {
   pinMode(RELAY_DOOR, OUTPUT); 
   pinMode(PIN_BUZZ, OUTPUT); 
 
-  prefs.load();  
-  
+  setupChronoDot();
+  setupPrefs();
   setupLCD();  
   setupMenu();
-  setupChronoDot();
 
   bootTone();
 }
@@ -167,6 +167,14 @@ void loop() {
   tNow = millis();
   procLoopKeyPress();
   procLoopState();
+}
+
+void setupPrefs() {
+  prefs.load();  
+  
+  hdlrKeySound.setValue(prefs.readBoolean(hdlrKeySound.getIdent(), KEY_SOUND_DEFAULT));
+  hdlrBootSound.setValue(prefs.readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
+  hdlrOtherSound.setValue(prefs.readBoolean(hdlrOtherSound.getIdent(), OTHER_SOUND_DEFAULT));
 }
 
 void setupMenu() {
@@ -188,10 +196,6 @@ void setupMenu() {
   mBootSound.appendSibling(&mOtherSound);
     
   currentHandler = NULL;
-  
-  hdlrKeySound.setValue(prefs.readBoolean(hdlrKeySound.getIdent(), KEY_SOUND_DEFAULT));
-  hdlrBootSound.setValue(prefs.readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
-  hdlrOtherSound.setValue(prefs.readBoolean(hdlrOtherSound.getIdent(), OTHER_SOUND_DEFAULT));
 }
 
 void bootTone() {
@@ -321,17 +325,28 @@ void clearHandler(boolean confirmed) {
 //#if DBG
 //    Serial.println("Handler relinquished control");
 //#endif
-    prefs.writeShort(currentHandler->getIdent(), currentHandler->getValue());
+    switch ( currentHandler->getValueType() ) {
+      case TYPE_SHORT:
+        prefs.writeShort(currentHandler->getIdent(), currentHandler->getValue());
+      break;
+      case TYPE_INT:
+        prefs.writeInt(currentHandler->getIdent(), currentHandler->getValue());
+      break;
+      case TYPE_LONG:
+        prefs.writeLong(currentHandler->getIdent(), currentHandler->getValue());
+      break;
+    }
+
     prefs.load();
     confirmTone();  
-    currentHandler->dispayConfirmation();
+    currentHandler->displayConfirmation();
   }  
   else {
 //#if DBG
 //    Serial.println("Canceling handler");
 //#endif
     cancelTone();  
-    currentHandler->dispayCancellation();
+    currentHandler->displayCancellation();
   }  
 
   currentHandler->relinquishControl();
@@ -367,6 +382,7 @@ void procLoopStateMenu(int k, char c) {
 //#endif
           state = STATE_HANDLER;
           currentHandler->takeControl(&lcd);
+          currentHandler->displayStart();
           procLoopStateHandler(k, c);
         }
         break;
@@ -502,7 +518,7 @@ float readTemp(const int scale) {
 //  Serial.print(t); Serial.println(" degress C");
 //#endif
   
-  if ( scale == 1 ) {
+  if ( scale == TEMP_F ) {
     // now convert to Fahrenheight
     t = (t * 9.0 / 5.0) + 32.0;
 //#if DBG

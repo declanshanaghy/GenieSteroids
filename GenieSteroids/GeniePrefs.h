@@ -3,12 +3,16 @@
 
 #include <Arduino.h>
 #include <EEPROM.h>
+#include "EEPromAnything.h"
+
+#define DBG 1
 
 //00-09 : Internally reserved 
+#define CFG_UNUSED         0
 
 //10-19 : Lock times
-#define CFG_LOCK1  10
-#define CFG_LOCK2  12
+#define CFG_LOCK1          10
+#define CFG_LOCK2          12
 
 //20-XX : Settings
 #define CFG_OPEN_DURATION  20
@@ -23,16 +27,28 @@
 #define BOOT_SOUND_DEFAULT     true
 #define OTHER_SOUND_DEFAULT    true
 
+#define DEFAULT_SHORT  0xFF
+#define DEFAULT_INT    0xFFFF
+#define DEFAULT_LONG   0xFFFFFFFF
+
 class GeniePrefs {
 public:
   GeniePrefs();
   void load();
   void resetToDefault();
+  void flush();
   void save();
   void print();
 
   short readShort(int address, short vDefault);
   void writeShort(int address, short value);
+  
+  int readInt(int address, int vDefault);
+  void writeInt(int address, int value);
+
+  long readLong(int address, long vDefault);
+  void writeLong(int address, long value);
+
   boolean readBoolean(int address, boolean vDefault);
   void writeBoolean(int address, boolean value);
 
