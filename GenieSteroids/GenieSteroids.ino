@@ -70,8 +70,11 @@
 #define TEMP_C 0
 #define TEMP_F 1
 
-#define IDLE_LOOP_UPDATE 500
-#define INPUT_IDLE_TIMEOUT 10000
+// How often to refresh the home text when the unit is idle
+#define IDLE_LOOP_UPDATE 500  
+
+// How long between keypresses until we go back to idle state
+#define INPUT_IDLE_TIMEOUT 30000
 
 /*****************************
   PROGRAM MEMORY
@@ -241,13 +244,13 @@ void setupLCD() {
 void setupChronoDot() {
   RTC.begin();
 
-  if (! RTC.isrunning()) {
+//  if (! RTC.isrunning()) {
 //#if DBG
 //    Serial.println("RTC is NOT running!");
 //#endif
     // following line sets the RTC to the date & time this sketch was compiled
-    RTC.adjust(DateTime(__DATE__, __TIME__));
-  }
+    RTC.adjust(COMPILE_TIME);
+//  }
 }
 
 void procLoopState() {
@@ -272,6 +275,8 @@ void setIdle() {
   state = STATE_IDLE;
   menu.reset();
   lcd.clear();
+  lcd.noBlink();
+  lcd.noCursor();
   displayMainHeader();
 }
 

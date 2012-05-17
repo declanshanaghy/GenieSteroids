@@ -62,19 +62,32 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
     switch ( k ) {
       case KEY_STAR:
         this->valid = true;
-        this->state--;
+        if ( this->state == STATE_DT_DATE_Y3 )
+          // Automatically skip over century and millenimum input.
+          // Ya ya, it's an intentional year 2100 bug :-P
+          this->state -= 3;
+        else
+          this->state--;
         break;
       case KEY_POUND:
         this->valid = true;
-        this->state++;
+        if ( this->state == STATE_DT_DATE_D2 )
+          // Automatically skip over century and millenimum input.
+          // Ya ya, it's an intentional year 2100 bug :-P
+          this->state += 3;
+        else
+          this->state++;
         break;
       default:
+        short month = dt.month();
+        short days_in_month = (short)pgm_read_byte(DAYS_IN_MONTH + month - 1);
         short v = (int)c - 48;
         short dec = 0;
         short unit = 0;
         short set = 0;
         switch ( this->state ) {
           case STATE_DT_DATE_M1:
+            // First digit of month can only be 0-1
             if (v >= 0 && v <= 1) {
               dec = dt.month() / 10;
               unit = dt.month() % 10;
@@ -88,6 +101,8 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
             dec = dt.month() / 10;
             unit = dt.month() % 10;
             if ( dec == 0 ) {
+              // If first digit of month is 0, 
+              // second digit can be 1-9
               if (v >= 1 && v <= 9) {
                 set = (dec * 10) + v;
                 dt.setMonth(set);
@@ -96,6 +111,8 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
               }
             }
             else {
+              // If first digit of month is 1, 
+              // second digit can be 0-2
               if (v >= 0 && v <= 2) {
                 set = (dec * 10) + v;
                 dt.setMonth(set);
@@ -105,28 +122,122 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
             }
             break;
           case STATE_DT_DATE_D1:
+            // If month is 2 second digit can be 0-2
+            // If month is not 2 second digit can be 0-3
+            if ( (month == 2 && v >= 0 && v <= 2) || 
+                 (month != 2 && v >= 0 && v <= 3) ) {
+              dec = dt.day() / 10;
+              unit = dt.day() % 10;
+              set = (10 * v) + unit;
+              dt.setDay(set);
+              this->valid = true;
+              this->state++;
+            }
             break;
           case STATE_DT_DATE_D2:
+            dec = dt.day() / 10;
+            unit = dt.day() % 10;
+            set = (dec * 10) + v;
+            // Complete month digits must be between 1-12
+            if ( set >= 1 && set <= days_in_month ) {
+              dt.setDay(set);
+              this->valid = true;
+              // Automatically skip to decade input
+              // Ya ya, it's an intentional year 2100 bug :-P
+              this->state += 3;
+            }
             break;
           case STATE_DT_DATE_Y1:
             break;
           case STATE_DT_DATE_Y2:
             break;
           case STATE_DT_DATE_Y3:
+            // Ya ya, it's an intentional year 2100 bug :-P
+            if ( v >= 0 && v <= 9 ) {
+              dec = (dt.year() - 2000) / 10;
+              unit = (dt.year() - 2000) % 10;
+              set = (10 * v) + unit;
+              dt.setYear(2000 + set);
+              this->valid = true;
+              this->state++;
+            }
             break;
           case STATE_DT_DATE_Y4:
+            // Ya ya, it's an intentional year 2100 bug :-P
+            if ( v >= 0 && v <= 9 ) {
+              dec = (dt.year() - 2000) / 10;
+              unit = (dt.year() - 2000) % 10;
+              set = (10 * dec) + v;
+              dt.setYear(2000 + set);
+              this->valid = true;
+              this->state++;
+            }
             break;
           case STATE_DT_TIME_H1:
+            // First digit of hour can be 0-2
+            if ( v >= 0 && v <= 2 ) {
+              dec = dt.hour() / 10;
+              unit = dt.hour() % 10;
+              set = (10 * v) + unit;
+              dt.setHour(set);
+              this->valid = true;
+              this->state++;
+            }
             break;
           case STATE_DT_TIME_H2:
+            dec = dt.hour() / 10;
+            unit = dt.hour() % 10;
+            set = (dec * 10) + v;
+            // Complete hour digits must be between 0-23
+            if ( set >= 0 && set <= 23 ) {
+              dt.setHour(set);
+              this->valid = true;
+              this->state++;
+            }
             break;
           case STATE_DT_TIME_M1:
+            // First digit of minute can be 0-5
+            if ( v >= 0 && v <= 5 ) {
+              dec = dt.minute() / 10;
+              unit = dt.minute() % 10;
+              set = (10 * v) + unit;
+              dt.setMinute(set);
+              this->valid = true;
+              this->state++;
+            }
             break;
           case STATE_DT_TIME_M2:
+            dec = dt.minute() / 10;
+            unit = dt.minute() % 10;
+            set = (dec * 10) + v;
+            // Complete minute digits must be between 0-59
+            if ( set >= 0 && set <= 59 ) {
+              dt.setMinute(set);
+              this->valid = true;
+              this->state++;
+            }
             break;
           case STATE_DT_TIME_S1:
+            // First digit of second can be 0-5
+            if ( v >= 0 && v <= 5 ) {
+              dec = dt.second() / 10;
+              unit = dt.second() % 10;
+              set = (10 * v) + unit;
+              dt.setSecond(set);
+              this->valid = true;
+              this->state++;
+            }
             break;
           case STATE_DT_TIME_S2:
+            dec = dt.second() / 10;
+            unit = dt.second() % 10;
+            set = (dec * 10) + v;
+            // Complete second digits must be between 0-59
+            if ( set >= 0 && set <= 59 ) {
+              dt.setSecond(set);
+              this->valid = true;
+              this->state++;
+            }
             break;
         }
 #if DBG
@@ -138,7 +249,15 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
   Serial.print(unit);
   Serial.print(", set=");
   Serial.print(set);
-  Serial.println("");
+  Serial.print(", month=");
+  Serial.print(month);
+  Serial.print(", days_in_month=");
+  Serial.print(days_in_month);
+  Serial.print(", year=");
+  Serial.print(dt.year());
+  Serial.print(", valid=");
+  Serial.print(valid);
+  Serial.println("" ) ;
 #endif        
     }
   }

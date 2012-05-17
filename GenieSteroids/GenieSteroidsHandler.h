@@ -16,6 +16,8 @@ public:
   void displayConfirmation(void);
 };
 
+static prog_uchar DAYS_IN_MONTH[] PROGMEM = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+
 #define STATE_DT_BEGIN    0
 #define STATE_DT_DATE_M1  1
 #define STATE_DT_DATE_M2  2
