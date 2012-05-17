@@ -3,8 +3,11 @@
 
 #include <Arduino.h>
 #include <LiquidCrystal.h>
-#include "LcdMenuHandler.h"
 #include <Chronodot.h>
+#include <AnalogKeypad.h>
+#include "LcdMenuHandler.h"
+
+#define DBG 1
 
 class GenericSoundHandler : public LcdMenuHandler {
 public:
@@ -13,19 +16,23 @@ public:
   void displayConfirmation(void);
 };
 
-#define STATE_DT_DATE_M1  0
-#define STATE_DT_DATE_M2  1
-#define STATE_DT_DATE_D1  2
-#define STATE_DT_DATE_D2  3
-#define STATE_DT_DATE_Y1  4
-#define STATE_DT_DATE_Y2  5
-#define STATE_DT_DATE_Y3  6
-#define STATE_DT_DATE_Y4  7
+#define STATE_DT_BEGIN    0
+#define STATE_DT_DATE_M1  1
+#define STATE_DT_DATE_M2  2
+#define STATE_DT_DATE_D1  3
+#define STATE_DT_DATE_D2  4
+#define STATE_DT_DATE_Y1  5
+#define STATE_DT_DATE_Y2  6
+#define STATE_DT_DATE_Y3  7
+#define STATE_DT_DATE_Y4  8
 
-#define STATE_DT_TIME_H1  0
-#define STATE_DT_TIME_H2  0
-#define STATE_DT_TIME_M1  0
-#define STATE_DT_TIME_M2  0
+#define STATE_DT_TIME_H1  9
+#define STATE_DT_TIME_H2  10
+#define STATE_DT_TIME_M1  11
+#define STATE_DT_TIME_M2  12
+#define STATE_DT_TIME_S1  13
+#define STATE_DT_TIME_S2  14
+#define STATE_DT_CONFIRM  15
 
 class DateTimeHandler : public LcdMenuHandler {
 public:
@@ -39,6 +46,7 @@ private:
   char sz_dt[11];
 
   void displayDate();
+  void displayTime();
 };
 
 #endif //GENIESTEROIDSHANDLER_H

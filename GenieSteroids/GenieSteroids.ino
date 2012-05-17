@@ -12,7 +12,7 @@
 #include "GeniePrefs.h"
 #include "GenieSteroidsHandler.h"
 
-//#define DBG 0
+#define DBG 1
 
 /***************************
   ANALOG PIN DEFINIDTIONS
@@ -160,7 +160,7 @@ void setup() {
   setupLCD();  
   setupMenu();
 
-  bootTone();
+  toneBoot();
 }
 
 void loop() {
@@ -198,17 +198,17 @@ void setupMenu() {
   currentHandler = NULL;
 }
 
-void bootTone() {
+void toneBoot() {
   if ( prefs.bootSound )
     tone(PIN_BUZZ, 4000, 50);
 }
 
-void keyTone() {
+void toneKey() {
   if ( prefs.keySounds )
     tone(PIN_BUZZ, 3000, 10);
 }
 
-void confirmTone() {
+void toneConfirm() {
   if ( prefs.otherSounds ) {
     tone(PIN_BUZZ, 1000, 100);
     delay(100);
@@ -216,12 +216,16 @@ void confirmTone() {
   }
 }
 
-void cancelTone() {
+void toneCancel() {
   if ( prefs.otherSounds ) {
     tone(PIN_BUZZ, 1000, 100);
     delay(100);
     tone(PIN_BUZZ, 500, 200);
   }
+}
+
+void toneInvalid() {
+  tone(PIN_BUZZ, 75, 50);
 }
 
 void setupLCD() {
@@ -276,7 +280,7 @@ void procLoopKeyPress() {
   char c = kpad.getLastKeyChar();
     
   if ( k != KEY_NONE ) {
-    keyTone();
+    toneKey();
 //#if DBG
 //    Serial.print("Menu key: code="); Serial.println(k);
 //    Serial.print("          char="); Serial.println(c);
@@ -298,28 +302,36 @@ void procLoopKeyPress() {
 }
 
 void procLoopStateHandler(int k, char c) {
-  if (k == KEY_STAR) {
-    clearHandler(false);
-  }
-  else {
-    if ( currentHandler != NULL && currentHandler->wantsControl() ) {
+  if ( currentHandler != NULL && currentHandler->wantsControl() ) {
 //#if DBG
-//      Serial.println("Sending key to handler");
+//      Serial.print("handle key: ");
+//      Serial.print("k=");
+//      Serial.print(k);
+//      Serial.print(", c=");
+//      Serial.print(c);
+//      Serial.println("");
 //#endif
-      if (! currentHandler->procKeyPress(k, c)) {
-        clearHandler(true);
-      }
-      else {
+    // procKeyPress returns false when the handler is relinquishing control.
+    if (! currentHandler->procKeyPress(k, c)) {
+      //isConfirmed indicates whether the action was confirmed or canceled
+      clearHandler(currentHandler->isConfirmed());
+    }
+    else {
+      if ( !currentHandler->isValid() )  //User entered invalid keypress
+        toneInvalid();
+    }
+//    else {
 //#if DBG
 //        Serial.println("Handler retained control");
 //#endif
-      }
-    }
+//    }
   }
 }
 
 void clearHandler(boolean confirmed) {
   lcd.clear();
+  lcd.noBlink();
+  lcd.noCursor();
 
   if ( confirmed ) {
 //#if DBG
@@ -338,14 +350,14 @@ void clearHandler(boolean confirmed) {
     }
 
     prefs.load();
-    confirmTone();  
+    toneConfirm();  
     currentHandler->displayConfirmation();
   }  
   else {
 //#if DBG
 //    Serial.println("Canceling handler");
 //#endif
-    cancelTone();  
+    toneCancel();  
     currentHandler->displayCancellation();
   }  
 
