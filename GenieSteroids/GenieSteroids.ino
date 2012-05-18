@@ -131,7 +131,7 @@ LcdMenuEntry mSettings(MENU_4, "Settings", NULL);
 LcdMenuEntry mLock1(MENU_1, "Lock 1", NULL);
 LcdMenuEntry mLock2(MENU_2, "Lock 2", NULL);
 
-LcdMenuEntry mOpenDuration(MENU_1, "Open Duration   ", NULL);
+LcdMenuEntry mOpenDuration(MENU_1, "Open Duration", NULL);
 LcdMenuEntry mDate(MENU_2, "Date & Time", &hdlrDateTime);
 LcdMenuEntry mBacklight(MENU_3, "Backlight", NULL);
 LcdMenuEntry mSounds(MENU_4, "Sounds", NULL);
