@@ -447,12 +447,6 @@ void displayMainHeader() {
     lcd.print("Genie Steroids! ");
 }
 
-void h_setDateTime() {
-//#if DBG
-//  Serial.println("Set Date & Time");
-//#endif
-}
-
 void displayMenu() {
   menu.display();
   state = STATE_MENU;
