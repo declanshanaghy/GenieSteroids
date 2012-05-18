@@ -516,6 +516,19 @@ void readLight() {
 }
 
 float readTemp(const int scale) {
+  return readTemp_TMP36(scale);
+}
+
+float readTemp_Chronodot(const int scale) {
+  if ( scale == TEMP_F ) {
+    return RTC.now().tempF();
+  }
+  else {
+    return RTC.now().tempC();
+  }
+}
+
+float readTemp_TMP36(const int scale) {
   //getting the voltage reading from the temperature sensor
   int reading = analogRead(SENSOR_TEMP);  
    
