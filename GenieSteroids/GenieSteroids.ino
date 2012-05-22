@@ -120,7 +120,8 @@ LcdMenuHandler* currentHandler;
 GenericSoundHandler hdlrKeySound(CFG_KEY_SOUND);
 GenericSoundHandler hdlrBootSound(CFG_BOOT_SOUND);
 GenericSoundHandler hdlrOtherSound(CFG_OTHER_SOUND);
-DateTimeHandler hdlrDateTime(CFG_UNUSED);
+DateHandler hdlrDate(CFG_UNUSED);
+TimeHandler hdlrTime(CFG_UNUSED);
 
 LcdMenu menu(&lcd, LCD_COLS, LCD_ROWS);
 LcdMenuEntry mOverrideOpen(MENU_1, "Override Open", NULL);
@@ -128,13 +129,16 @@ LcdMenuEntry mAutoClose(MENU_2, "Close Timer", NULL);
 LcdMenuEntry mLockTimes(MENU_3, "Auto Lock", NULL);
 LcdMenuEntry mSettings(MENU_4, "Settings", NULL);
 
-LcdMenuEntry mLock1(MENU_1, "Lock 1", NULL);
-LcdMenuEntry mLock2(MENU_2, "Lock 2", NULL);
+LcdMenuEntry mLock1s(MENU_1, "Lock A", NULL);
+LcdMenuEntry mLock1r(MENU_2, "Open A", NULL);
+LcdMenuEntry mLock2s(MENU_3, "Lock B", NULL);
+LcdMenuEntry mLock2r(MENU_4, "Open B", NULL);
 
 LcdMenuEntry mOpenDuration(MENU_1, "Open Duration", NULL);
-LcdMenuEntry mDate(MENU_2, "Date & Time", &hdlrDateTime);
-LcdMenuEntry mBacklight(MENU_3, "Backlight", NULL);
-LcdMenuEntry mSounds(MENU_4, "Sounds", NULL);
+LcdMenuEntry mDate(MENU_2, "Set Date", &hdlrDate);
+LcdMenuEntry mTime(MENU_3, "Set Time", &hdlrTime);
+LcdMenuEntry mBacklight(MENU_4, "Backlight", NULL);
+LcdMenuEntry mSounds(MENU_5, "Sounds", NULL);
 
 LcdMenuEntry mKeySound(MENU_1, "Key Press", &hdlrKeySound);
 LcdMenuEntry mBootSound(MENU_2, "Boot Up", &hdlrBootSound);
@@ -186,12 +190,15 @@ void setupMenu() {
   mAutoClose.appendSibling(&mLockTimes);
   mLockTimes.appendSibling(&mSettings);
 
-  mLockTimes.setChild(&mLock1);
-  mLock1.appendSibling(&mLock2);
+  mLockTimes.setChild(&mLock1s);
+  mLock1s.appendSibling(&mLock1r);
+  mLock1r.appendSibling(&mLock2s);
+  mLock2s.appendSibling(&mLock2r);
 
   mSettings.setChild(&mOpenDuration);
   mOpenDuration.appendSibling(&mDate);
-  mDate.appendSibling(&mBacklight);
+  mDate.appendSibling(&mTime);
+  mTime.appendSibling(&mBacklight);
   mBacklight.appendSibling(&mSounds);
   
   mSounds.setChild(&mKeySound);
@@ -554,7 +561,7 @@ float readTemp_TMP36(const int scale) {
 
 void enableLCD() {
     lcd.display();
-    digitalWrite(PIN_LCD_BL_PWR, HIGH);
+    enableBacklight();
 //#if DBG
 //    Serial.println("LCD ON");
 //#endif
@@ -562,9 +569,17 @@ void enableLCD() {
 
 void disableLCD() {
     lcd.noDisplay();
-    digitalWrite(PIN_LCD_BL_PWR, LOW);
+    disableBacklight();
 //#if DBG
 //    Serial.println("LCD OFF");
 //#endif
+}
+
+void enableBacklight() {
+    digitalWrite(PIN_LCD_BL_PWR, HIGH);
+}
+
+void disableBacklight() {
+    digitalWrite(PIN_LCD_BL_PWR, LOW);
 }
 

@@ -25,10 +25,10 @@ void GenericSoundHandler::displayConfirmation() {
 }
 
 /********************************/
-/*    DateTimeHandler
+/*    DateHandler
 /********************************/
-void DateTimeHandler::displayStart() {
-  this->state = STATE_DT_BEGIN;
+void DateHandler::displayStart() {
+  this->state = STATE_DT_DATE_BEGIN;
   
   lcd->clear();
   lcd->blink();
@@ -37,7 +37,7 @@ void DateTimeHandler::displayStart() {
   displayDate();
 }
 
-boolean DateTimeHandler::procKeyPress(int k, char c) {
+boolean DateHandler::procKeyPress(int k, char c) {
 //#if DBG
 //  Serial.print("procKeyPress: ");
 //  Serial.print("k=");
@@ -54,7 +54,7 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
   this->valid = false;
   boolean wasDate = this->state < STATE_DT_TIME_H1;
 
-  if ( this->state == STATE_DT_BEGIN ) {
+  if ( this->state == STATE_DT_DATE_BEGIN ) {
     this->state++;
     this->valid = true;
   }
@@ -173,6 +173,134 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
               this->state++;
             }
             break;
+        }
+#if DBG
+  Serial.print("v=");
+  Serial.print(v);
+  Serial.print(", dec=");
+  Serial.print(dec);
+  Serial.print(", unit=");
+  Serial.print(unit);
+  Serial.print(", set=");
+  Serial.print(set);
+  Serial.print(", month=");
+  Serial.print(month);
+  Serial.print(", days_in_month=");
+  Serial.print(days_in_month);
+  Serial.print(", year=");
+  Serial.print(dt.year());
+  Serial.print(", valid=");
+  Serial.print(valid);
+  Serial.println("" ) ;
+#endif        
+    }
+  }
+  
+//#if DBG
+//  Serial.print("state out: ");
+//  Serial.print(state);
+//#endif
+
+  switch ( this->state ) {
+    case STATE_DT_DATE_BEGIN:
+      this-> confirmed = false;
+      return false;
+    case STATE_DT_DATE_CONFIRM:
+      RTC.adjust(dt);
+      this-> confirmed = true;
+      return false;
+    default:
+      displayDate();
+      return true;
+  }
+}
+
+void DateHandler::displayDate() {
+    short s = 3;
+    
+    lcd->setCursor(s, 0);
+    lcd->print("MM/DD/YYYY");      
+    lcd->setCursor(s, 1);
+    sprintf(sz_dt, "%02d/%02d/%04d", dt.month(), dt.day(), dt.year());
+    lcd->print(sz_dt);  
+  
+    switch ( this->state ) {
+      case STATE_DT_DATE_M1:
+        lcd->setCursor(s+0, 1);
+        break;
+      case STATE_DT_DATE_M2:
+        lcd->setCursor(s+1, 1);
+        break;
+      case STATE_DT_DATE_D1:
+        lcd->setCursor(s+3, 1);
+        break;
+      case STATE_DT_DATE_D2:
+        lcd->setCursor(s+4, 1);
+        break;
+      case STATE_DT_DATE_Y1:
+        lcd->setCursor(s+6, 1);
+        break;
+      case STATE_DT_DATE_Y2:
+        lcd->setCursor(s+7, 1);
+        break;
+      case STATE_DT_DATE_Y3:
+        lcd->setCursor(s+8, 1);
+        break;
+      case STATE_DT_DATE_Y4:
+        lcd->setCursor(s+9, 1);
+        break;
+    }
+}
+
+/********************************/
+/*    TimeHandler
+/********************************/
+void TimeHandler::displayStart() {
+  this->state = STATE_DT_TIME_BEGIN;
+  
+  lcd->clear();
+  lcd->blink();
+  lcd->noCursor();
+  dt = RTC.now();
+  displayTime();
+}
+
+boolean TimeHandler::procKeyPress(int k, char c) {
+//#if DBG
+//  Serial.print("procKeyPress: ");
+//  Serial.print("k=");
+//  Serial.print(k);
+//  Serial.print(", c=");
+//  Serial.print(c);
+//  Serial.println("");
+//#endif
+
+//#if DBG
+//  Serial.print("state in: ");
+//  Serial.print(state);
+//#endif
+  this->valid = false;
+
+  if ( this->state == STATE_DT_TIME_BEGIN ) {
+    this->state++;
+    this->valid = true;
+  }
+  else {
+    switch ( k ) {
+      case KEY_STAR:
+        this->valid = true;
+        this->state--;
+        break;
+      case KEY_POUND:
+        this->valid = true;
+          this->state++;
+        break;
+      default:
+        short v = (int)c - 48;
+        short dec = 0;
+        short unit = 0;
+        short set = 0;
+        switch ( this->state ) {
           case STATE_DT_TIME_H1:
             // First digit of hour can be 0-2
             if ( v >= 0 && v <= 2 ) {
@@ -249,12 +377,6 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
   Serial.print(unit);
   Serial.print(", set=");
   Serial.print(set);
-  Serial.print(", month=");
-  Serial.print(month);
-  Serial.print(", days_in_month=");
-  Serial.print(days_in_month);
-  Serial.print(", year=");
-  Serial.print(dt.year());
   Serial.print(", valid=");
   Serial.print(valid);
   Serial.println("" ) ;
@@ -267,69 +389,21 @@ boolean DateTimeHandler::procKeyPress(int k, char c) {
 //  Serial.print(state);
 //#endif
 
-  boolean isDate = this->state < STATE_DT_TIME_H1;
-  
   switch ( this->state ) {
-    case STATE_DT_BEGIN:
+    case STATE_DT_TIME_BEGIN:
       this-> confirmed = false;
       return false;
-    case STATE_DT_CONFIRM:
+    case STATE_DT_TIME_CONFIRM:
       RTC.adjust(dt);
       this-> confirmed = true;
       return false;
     default:
-      if ( isDate ) {
-        if ( !wasDate )
-          lcd->clear();
-        displayDate();
-      }
-      else {
-        if ( wasDate )
-          lcd->clear();
-        displayTime();
-      }
+      displayTime();
       return true;
   }
 }
 
-void DateTimeHandler::displayDate() {
-    short s = 3;
-    
-    lcd->setCursor(s, 0);
-    lcd->print("MM/DD/YYYY");      
-    lcd->setCursor(s, 1);
-    sprintf(sz_dt, "%02d/%02d/%04d", dt.month(), dt.day(), dt.year());
-    lcd->print(sz_dt);  
-  
-    switch ( this->state ) {
-      case STATE_DT_DATE_M1:
-        lcd->setCursor(s+0, 1);
-        break;
-      case STATE_DT_DATE_M2:
-        lcd->setCursor(s+1, 1);
-        break;
-      case STATE_DT_DATE_D1:
-        lcd->setCursor(s+3, 1);
-        break;
-      case STATE_DT_DATE_D2:
-        lcd->setCursor(s+4, 1);
-        break;
-      case STATE_DT_DATE_Y1:
-        lcd->setCursor(s+6, 1);
-        break;
-      case STATE_DT_DATE_Y2:
-        lcd->setCursor(s+7, 1);
-        break;
-      case STATE_DT_DATE_Y3:
-        lcd->setCursor(s+8, 1);
-        break;
-      case STATE_DT_DATE_Y4:
-        lcd->setCursor(s+9, 1);
-        break;
-    }
-}
-
-void DateTimeHandler::displayTime() {
+void TimeHandler::displayTime() {
     short s = 4;
 
     lcd->setCursor(s, 0);
