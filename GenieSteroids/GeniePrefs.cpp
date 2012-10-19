@@ -58,7 +58,7 @@ void GeniePrefs::load() {
 //#if DBG
 //  Serial.println("GeniePrefs::load...");
 //#endif
-  openDuration = readShort(CFG_OPEN_DURATION, OPEN_DURATION_DEFAULT);
+  openDuration = readInt(CFG_OPEN_DURATION, OPEN_DURATION_DEFAULT);
   keySounds = readBoolean(CFG_KEY_SOUND, KEY_SOUND_DEFAULT);
   bootSound = readBoolean(CFG_BOOT_SOUND, BOOT_SOUND_DEFAULT);
   otherSounds = readBoolean(CFG_OTHER_SOUND, OTHER_SOUND_DEFAULT);
@@ -73,7 +73,7 @@ void GeniePrefs::save() {
 //  Serial.println("GeniePrefs::save...");
 //#endif
   print();
-  writeShort(CFG_OPEN_DURATION, openDuration);
+  writeInt(CFG_OPEN_DURATION, openDuration);
   writeBoolean(CFG_KEY_SOUND, keySounds);
   writeBoolean(CFG_BOOT_SOUND, bootSound);
   writeBoolean(CFG_OTHER_SOUND, otherSounds);

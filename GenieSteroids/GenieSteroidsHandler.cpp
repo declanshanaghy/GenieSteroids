@@ -25,6 +25,126 @@ void GenericSoundHandler::displayConfirmation() {
 }
 
 /********************************/
+/*    IntervalHandler
+/********************************/
+void IntervalHandler::displayStart() {
+  this->state = STATE_DT_DATE_BEGIN;
+  
+  lcd->clear();
+  lcd->blink();
+  lcd->setCursor(0, 0);
+  lcd->print("Enter minutes");      
+  displayInterval();
+}
+
+boolean IntervalHandler::procKeyPress(int k, char c) {
+  int len = this->interval.length();
+  boolean ret;
+//#if DBG
+//  Serial.print("state in: ");
+//  Serial.println(this->state);
+//#endif
+    if (this->state == INTERVAL_STATE_BEGIN) {
+      this->valid = true;
+      this->interval = String(this->getValue());
+      this->state = this->interval.length()+1;
+      displayInterval();      
+      ret = true;
+    }
+    else if (this->state == INTERVAL_STATE_END && 
+             k != KEY_STAR && k != KEY_POUND) {
+      this->valid = false;
+      ret = true;
+    }
+    else {
+      switch ( k ) {
+        case KEY_0:
+        case KEY_1:
+        case KEY_2:
+        case KEY_3:
+        case KEY_4:
+        case KEY_5:
+        case KEY_6:
+        case KEY_7:
+        case KEY_8:
+        case KEY_9:
+          this->interval += ' ';
+          this->interval.setCharAt(this->interval.length()-1, c);
+          displayInterval();
+          this->state++;
+          this->valid = true;
+          ret = true;
+          break;
+        case KEY_STAR:
+          // Backspace
+          this->valid = true;
+          if ( this->state == INTERVAL_STATE_FIRST_CHAR ) {
+            // User canceled entry
+            this-> confirmed = false;
+            ret = false;
+          }
+          else {
+            this->interval = this->interval.substring(0, this->interval.length()-1);
+            clearBottomRow();
+            displayInterval();
+            this->state--;
+            ret = true;
+          }
+          break;
+        case KEY_POUND:
+          // User confirmed value          
+          storeValue();
+          this->valid = true;
+          this-> confirmed = true;
+          ret = false;
+          break;
+        default:
+          this->valid = false;
+          ret = true;
+          break;
+      }  
+    }
+//#if DBG
+//  Serial.print("state out: ");
+//  Serial.println(this->state);
+//  Serial.print("interval: ");
+//  Serial.println(this->interval);
+//  Serial.print("interval (length): ");
+//  Serial.println(this->interval.length());
+//  Serial.println("******************************************************");
+//#endif    
+    return ret;
+}
+
+void IntervalHandler::storeValue() {
+  int l = this->interval.length()+1;
+  char buf[l];
+  this->interval.toCharArray(buf, l);          
+  long val = atoi(buf);
+//#if DBG
+//  Serial.print("interval: ");
+//  Serial.println(this->interval);
+//  Serial.print("buf: ");
+//  Serial.println(buf);
+//  Serial.print("val: ");
+//  Serial.println(val);
+//#endif
+  this->setValue(val);
+}
+
+void IntervalHandler::clearBottomRow() {
+  // Clear the bottom row
+  lcd->setCursor(0, 1);
+  lcd->print("                ");
+}
+
+void IntervalHandler::displayInterval() {
+  lcd->setCursor(0, 1);
+  lcd->print(this->interval);
+  lcd->setCursor(this->interval.length(), 1);
+}
+
+/********************************/
 /*    DateHandler
 /********************************/
 void DateHandler::displayStart() {
@@ -174,25 +294,25 @@ boolean DateHandler::procKeyPress(int k, char c) {
             }
             break;
         }
-#if DBG
-  Serial.print("v=");
-  Serial.print(v);
-  Serial.print(", dec=");
-  Serial.print(dec);
-  Serial.print(", unit=");
-  Serial.print(unit);
-  Serial.print(", set=");
-  Serial.print(set);
-  Serial.print(", month=");
-  Serial.print(month);
-  Serial.print(", days_in_month=");
-  Serial.print(days_in_month);
-  Serial.print(", year=");
-  Serial.print(dt.year());
-  Serial.print(", valid=");
-  Serial.print(valid);
-  Serial.println("" ) ;
-#endif        
+//#if DBG
+//  Serial.print("v=");
+//  Serial.print(v);
+//  Serial.print(", dec=");
+//  Serial.print(dec);
+//  Serial.print(", unit=");
+//  Serial.print(unit);
+//  Serial.print(", set=");
+//  Serial.print(set);
+//  Serial.print(", month=");
+//  Serial.print(month);
+//  Serial.print(", days_in_month=");
+//  Serial.print(days_in_month);
+//  Serial.print(", year=");
+//  Serial.print(dt.year());
+//  Serial.print(", valid=");
+//  Serial.print(valid);
+//  Serial.println("" ) ;
+//#endif        
     }
   }
   
@@ -368,19 +488,19 @@ boolean TimeHandler::procKeyPress(int k, char c) {
             }
             break;
         }
-#if DBG
-  Serial.print("v=");
-  Serial.print(v);
-  Serial.print(", dec=");
-  Serial.print(dec);
-  Serial.print(", unit=");
-  Serial.print(unit);
-  Serial.print(", set=");
-  Serial.print(set);
-  Serial.print(", valid=");
-  Serial.print(valid);
-  Serial.println("" ) ;
-#endif        
+//#if DBG
+//  Serial.print("v=");
+//  Serial.print(v);
+//  Serial.print(", dec=");
+//  Serial.print(dec);
+//  Serial.print(", unit=");
+//  Serial.print(unit);
+//  Serial.print(", set=");
+//  Serial.print(set);
+//  Serial.print(", valid=");
+//  Serial.print(valid);
+//  Serial.println("" ) ;
+//#endif        
     }
   }
   

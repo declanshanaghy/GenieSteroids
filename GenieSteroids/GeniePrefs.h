@@ -54,7 +54,7 @@ public:
 
   // Time in minutes that the door can stay open
   // before being closed automatically
-  short openDuration; 
+  int openDuration; 
 
   // Whether to play key sounds when keys are pressed
   boolean keySounds;

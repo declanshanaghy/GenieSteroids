@@ -9,12 +9,34 @@
 
 #define DBG 1
 
+#define INTERVAL_STATE_BEGIN 0
+#define INTERVAL_STATE_FIRST_CHAR 1
+#define INTERVAL_MAX_CHARS 3
+#define INTERVAL_STATE_END INTERVAL_STATE_FIRST_CHAR + INTERVAL_MAX_CHARS
+
 class GenericSoundHandler : public LcdMenuHandler {
 public:
   GenericSoundHandler(int ident) : LcdMenuHandler(ident) {};
   boolean procKeyPress(int k, char c);
   void displayConfirmation(void);
 };
+
+class IntervalHandler : public LcdMenuHandler {
+private:
+  String interval;
+
+private:  
+  void displayInterval();
+  void clearBottomRow();
+  void storeValue();
+  
+public:
+  virtual short getValueType() { return TYPE_INT; };
+  IntervalHandler(int ident) : LcdMenuHandler(ident) {};
+  void displayStart();
+  boolean procKeyPress(int k, char c);
+};
+
 
 static prog_uchar DAYS_IN_MONTH[] PROGMEM = { 31,28,31,30,31,30,31,31,30,31,30,31 };
 

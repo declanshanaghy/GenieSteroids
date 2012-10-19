@@ -77,23 +77,6 @@
 #define INPUT_IDLE_TIMEOUT 30000
 
 /*****************************
-  PROGRAM MEMORY
-******************************/
-//PROGMEM prog_char string_override[] = "Override Open";
-//PROGMEM prog_char string_close[] = "Close Timer";
-//PROGMEM prog_char string_autolock[] = "Auto Lock";
-//PROGMEM prog_char string_settings[] = "Settings";
-//PROGMEM prog_char string_lock1[] = "Lock 1";
-//PROGMEM prog_char string_lock2[] = "Lock 2";
-//PROGMEM prog_char string_openduration[] = "Open Duration";
-//PROGMEM prog_char string_datetime[] = "Date & Time";
-//PROGMEM prog_char string_backlight[] = "Backlight";
-//PROGMEM prog_char string_sounds[] = "Sounds";
-//PROGMEM prog_char string_keypress[] = "Key Press";
-//PROGMEM prog_char string_bootsound[] = "Boot Sound";
-//PROGMEM prog_char string_menusounds[] = "Menu Sounds";
-
-/*****************************
   GLOBAL VARS
 ******************************/
 const DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
@@ -122,10 +105,11 @@ GenericSoundHandler hdlrBootSound(CFG_BOOT_SOUND);
 GenericSoundHandler hdlrOtherSound(CFG_OTHER_SOUND);
 DateHandler hdlrDate(CFG_UNUSED);
 TimeHandler hdlrTime(CFG_UNUSED);
+IntervalHandler hdlrOpenDuration(CFG_OPEN_DURATION);
 
 LcdMenu menu(&lcd, LCD_COLS, LCD_ROWS);
 LcdMenuEntry mOverrideOpen(MENU_1, "Override Open", NULL);
-LcdMenuEntry mAutoClose(MENU_2, "Close Timer", NULL);
+LcdMenuEntry mAutoClose(MENU_2, "Close Timer", &hdlrOpenDuration);
 LcdMenuEntry mLockTimes(MENU_3, "Auto Lock", NULL);
 LcdMenuEntry mSettings(MENU_4, "Settings", NULL);
 
@@ -177,11 +161,11 @@ void loop() {
 }
 
 void setupPrefs() {
-  prefs.load();  
-  
+  prefs.load();    
   hdlrKeySound.setValue(prefs.readBoolean(hdlrKeySound.getIdent(), KEY_SOUND_DEFAULT));
   hdlrBootSound.setValue(prefs.readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
   hdlrOtherSound.setValue(prefs.readBoolean(hdlrOtherSound.getIdent(), OTHER_SOUND_DEFAULT));
+  hdlrOpenDuration.setValue(prefs.readInt(hdlrOpenDuration.getIdent(), OPEN_DURATION_DEFAULT));
 }
 
 void setupMenu() {
@@ -348,20 +332,26 @@ void clearHandler(boolean confirmed) {
   if ( confirmed ) {
 //#if DBG
 //    Serial.println("Handler relinquished control");
+//    Serial.print("Saving value: ");
+//    Serial.println(currentHandler->getValue());
 //#endif
     switch ( currentHandler->getValueType() ) {
       case TYPE_SHORT:
         prefs.writeShort(currentHandler->getIdent(), currentHandler->getValue());
-      break;
+        break;
       case TYPE_INT:
         prefs.writeInt(currentHandler->getIdent(), currentHandler->getValue());
-      break;
+        break;
       case TYPE_LONG:
         prefs.writeLong(currentHandler->getIdent(), currentHandler->getValue());
-      break;
+        break;
+//      default:
+//#if DBG
+//    Serial.println("*** No value saved ***");
+//#endif
     }
 
-    prefs.load();
+    prefs.load();    
     toneConfirm();  
     currentHandler->displayConfirmation();
   }  
