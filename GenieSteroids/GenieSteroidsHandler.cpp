@@ -6,6 +6,7 @@
 /********************************/
 boolean GenericSoundHandler::procKeyPress(int k, char c) {
   this->val = !this->val;
+  this->confirmed = true;
   return false;
 }
 

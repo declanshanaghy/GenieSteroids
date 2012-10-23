@@ -7,10 +7,11 @@
 
 #include <AnalogKeypad.h>
 #include <LcdMenu.h>
-//#include <avr/pgmspace.h>
 
 #include "GeniePrefs.h"
 #include "GenieSteroidsHandler.h"
+#include "DoorController.h"
+#include "HomeScreen.h"
 
 #define DBG 1
 
@@ -63,39 +64,39 @@
 ****************************/
 #define LCD_COLS 16
 #define LCD_ROWS 2
-#define LCD_CHAR_DEGREES 223
 
-#define RELAY_DELAY 200
+#define INTERVAL_LIGHT_UPDATE 100
+#define N_LIGHT_VALUES 10
 
-#define TEMP_C 0
-#define TEMP_F 1
-
-// How often to refresh the home text when the unit is idle
-#define IDLE_LOOP_UPDATE 500  
+#define RELAY_DELAY 250
 
 // How long between keypresses until we go back to idle state
-#define INPUT_IDLE_TIMEOUT 30000
+#define INPUT_IDLE_TIMEOUT 3000
+
+// How long between keypresses until the LCD is disabled
+#define INPUT_IDLE_LCD_OFF 5000
 
 /*****************************
   GLOBAL VARS
 ******************************/
 const DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
 
+boolean lcdOn = false;
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D7, 
                   PIN_LCD_D6, PIN_LCD_D5, PIN_LCD_D4);
 AnalogKeypad kpad = AnalogKeypad(SENSOR_KEYS, REPEAT_OFF, 10000, 1000);
-Chronodot RTC;
+Chronodot chronodot;
 GeniePrefs prefs;
-Bounce door(PIN_DOOR_SENS, 100);
-boolean doorOpen = false;
+HomeScreen homeScreen(lcd, chronodot, SENSOR_TEMP);
+DoorController doorCtrl(&doorControllerCallback, prefs, PIN_DOOR_SENS, RELAY_DOOR, RELAY_DELAY);
 
-char sz_time[] = "00:00:00 AM";
-char sz_temp[] = "999F";
+short light_values[N_LIGHT_VALUES] = {255};
+int light_total = 0;
+short light_idx = 0;
+short light_avg = 0;
 
-int light = 0;
-long tNow = 0;
-long tLastIdleReading = 0;
-long tLastKeyPress = 0;
+unsigned long tLastLightUpdate = 0;
+unsigned long tLastActivity = 0;
 
 short state = STATE_IDLE;
 
@@ -108,21 +109,10 @@ TimeHandler hdlrTime(CFG_UNUSED);
 IntervalHandler hdlrOpenDuration(CFG_OPEN_DURATION);
 
 LcdMenu menu(&lcd, LCD_COLS, LCD_ROWS);
-LcdMenuEntry mOverrideOpen(MENU_1, "Override Open", NULL);
-LcdMenuEntry mAutoClose(MENU_2, "Close Timer", &hdlrOpenDuration);
-LcdMenuEntry mLockTimes(MENU_3, "Auto Lock", NULL);
-LcdMenuEntry mSettings(MENU_4, "Settings", NULL);
-
-LcdMenuEntry mLock1s(MENU_1, "Lock A", NULL);
-LcdMenuEntry mLock1r(MENU_2, "Open A", NULL);
-LcdMenuEntry mLock2s(MENU_3, "Lock B", NULL);
-LcdMenuEntry mLock2r(MENU_4, "Open B", NULL);
-
-LcdMenuEntry mOpenDuration(MENU_1, "Open Duration", NULL);
+LcdMenuEntry mOpenDuration(MENU_1, "Close Timer", &hdlrOpenDuration);
 LcdMenuEntry mDate(MENU_2, "Set Date", &hdlrDate);
 LcdMenuEntry mTime(MENU_3, "Set Time", &hdlrTime);
-LcdMenuEntry mBacklight(MENU_4, "Backlight", NULL);
-LcdMenuEntry mSounds(MENU_5, "Sounds", NULL);
+LcdMenuEntry mSounds(MENU_4, "Sounds", NULL);
 
 LcdMenuEntry mKeySound(MENU_1, "Key Press", &hdlrKeySound);
 LcdMenuEntry mBootSound(MENU_2, "Boot Up", &hdlrBootSound);
@@ -132,20 +122,13 @@ void setup() {
   Wire.begin();
   Serial.begin(115200);
 
-//#if DBG
-//  Serial.println("setup()");  
-//#endif
-
   state = STATE_IDLE;
   
-  kpad.init();
-  
-  pinMode(PIN_DOOR_SENS, INPUT); 
-  pinMode(RELAY_LIGHT, OUTPUT); 
+  pinMode(RELAY_LIGHT, OUTPUT);
   pinMode(RELAY_LOCK, OUTPUT); 
-  pinMode(RELAY_DOOR, OUTPUT); 
   pinMode(PIN_BUZZ, OUTPUT); 
 
+  kpad.init(); 
   setupChronoDot();
   setupPrefs();
   setupLCD();  
@@ -155,9 +138,56 @@ void setup() {
 }
 
 void loop() {
-  tNow = millis();
+  doorCtrl.loop();
   procLoopKeyPress();
   procLoopState();
+}
+
+void doorControllerCallback(short msg, unsigned long countdown) {  
+  tLastActivity = millis();
+  
+  if ( !lcdOn )
+    enableLCD();
+  
+  switch ( msg ) {
+  case MSG_DOOR_OPEN:
+    if ( state == STATE_IDLE ) {      
+      lcd.home();
+      lcd.print("      OPEN      ");
+    }
+    break;
+  case MSG_DOOR_CLOSED:
+    homeScreen.display();
+    break;
+  case MSG_CLOSE_DOOR_COUNTDOWN:
+    if ( state == STATE_IDLE ) {
+      lcd.home();
+      lcd.print("Close:          ");
+      lcd.setCursor(7, 0);
+      if ( countdown > 60 ) {
+        lcd.print(countdown/60);
+        lcd.print("m");
+      }
+      else {
+        lcd.print(countdown);
+        lcd.print("s");
+      }
+    }
+    break;
+  case MSG_CLOSE_DOOR_NOW:
+    if ( state == STATE_IDLE ) {
+      lcd.home();
+      lcd.print("    Closing     ");
+    }
+    break;
+  case MSG_DOOR_CLOSE_ERROR:
+    if ( state == STATE_IDLE ) {
+      lcd.home();
+      lcd.print(" CANT CLOSE :-( ");
+    }
+    toneCancel(true);
+    break;
+  }
 }
 
 void setupPrefs() {
@@ -169,21 +199,10 @@ void setupPrefs() {
 }
 
 void setupMenu() {
-  menu.setHead(&mOverrideOpen);
-  mOverrideOpen.appendSibling(&mAutoClose);
-  mAutoClose.appendSibling(&mLockTimes);
-  mLockTimes.appendSibling(&mSettings);
-
-  mLockTimes.setChild(&mLock1s);
-  mLock1s.appendSibling(&mLock1r);
-  mLock1r.appendSibling(&mLock2s);
-  mLock2s.appendSibling(&mLock2r);
-
-  mSettings.setChild(&mOpenDuration);
+  menu.setHead(&mOpenDuration);
   mOpenDuration.appendSibling(&mDate);
   mDate.appendSibling(&mTime);
-  mTime.appendSibling(&mBacklight);
-  mBacklight.appendSibling(&mSounds);
+  mTime.appendSibling(&mSounds);
   
   mSounds.setChild(&mKeySound);
   mKeySound.appendSibling(&mBootSound);
@@ -210,8 +229,8 @@ void toneConfirm() {
   }
 }
 
-void toneCancel() {
-  if ( prefs.otherSounds ) {
+void toneCancel(boolean force) {
+  if ( force || prefs.otherSounds ) {
     tone(PIN_BUZZ, 1000, 100);
     delay(100);
     tone(PIN_BUZZ, 500, 200);
@@ -222,67 +241,79 @@ void toneInvalid() {
   tone(PIN_BUZZ, 75, 50);
 }
 
-void setupLCD() {
+void setupLCD() {  
   // set up the LCD's number of columns and rows: 
   lcd.begin(LCD_COLS, LCD_ROWS);
 
   pinMode(PIN_LCD_BL_PWR, OUTPUT); 
   enableLCD();
   
-  displayMainHeader();
+  homeScreen.display();
 }
 
 void setupChronoDot() {
-  RTC.begin();
+  chronodot.begin();
 
-//  if (! RTC.isrunning()) {
+//  if (! chronodot.isrunning()) {
 //#if DBG
-//    Serial.println("RTC is NOT running!");
+//    Serial.println("chronodot is NOT running!");
 //#endif
-    // following line sets the RTC to the date & time this sketch was compiled
-    RTC.adjust(COMPILE_TIME);
+    // following line sets the chronodot to the date & time this sketch was compiled
+    chronodot.adjust(COMPILE_TIME);
 //  }
 }
 
 void procLoopState() {
+  unsigned long tNow = millis();
+
   switch (state) {
     case STATE_IDLE:
-      procLoopStateIdle();
+      homeScreen.loop();
       break;
   }
   
-  if (state != STATE_IDLE && tNow - tLastKeyPress > INPUT_IDLE_TIMEOUT) {
+  if (state != STATE_IDLE && tNow > tLastActivity + INPUT_IDLE_TIMEOUT) {
 //#if DBG
 //    Serial.print("Idle timeout: "); Serial.println(tNow - tLastKeyPress);
 //#endif
     setIdle();
   }
     
-  //Things to do in every state
-  readLight();    
+  if (state == STATE_IDLE && tNow > tLastActivity + INPUT_IDLE_LCD_OFF) {
+//#if DBG
+//    Serial.print("Idle timeout (lcd off): "); Serial.println(tNow - tLastKeyPress);
+//#endif
+    disableLCD();    
+  }
+  else {
+    //Things to do in every state
+    adjustBacklight();
+  }
 }
 
 void setIdle() {
   state = STATE_IDLE;
   menu.reset();
-  lcd.clear();
-  lcd.noBlink();
-  lcd.noCursor();
-  displayMainHeader();
+  homeScreen.display();
 }
 
 void procLoopKeyPress() {
+  unsigned long tNow = millis();
+  
   int k = kpad.readKey();
   char c = kpad.getLastKeyChar();
     
   if ( k != KEY_NONE ) {
+    if ( !lcdOn )
+      enableLCD();
+      
     toneKey();
 //#if DBG
 //    Serial.print("Menu key: code="); Serial.println(k);
 //    Serial.print("          char="); Serial.println(c);
 //#endif
     
-    tLastKeyPress = tNow;
+    tLastActivity = tNow;
     switch (state) {
       case STATE_IDLE:
         displayMenu();
@@ -359,7 +390,7 @@ void clearHandler(boolean confirmed) {
 //#if DBG
 //    Serial.println("Canceling handler");
 //#endif
-    toneCancel();  
+    toneCancel(false);  
     currentHandler->displayCancellation();
   }  
 
@@ -404,46 +435,6 @@ void procLoopStateMenu(int k, char c) {
   }
 }
 
-void procLoopStateIdle() {
-  /*
-   * Actions to take in idle state.
-   * We only read and act on the door switch in idle state.
-   * So as to not go into auto close mode while the user 
-   * is interacting with the device.
-   */
-  if (tNow - tLastIdleReading > IDLE_LOOP_UPDATE) {
-    int hours=0, minutes=0, seconds=0;
-
-    readTime(hours, minutes, seconds);
-    displayTime(hours, minutes, seconds);
-
-    float temp = readTemp(TEMP_F);
-    displayTemp(TEMP_F, temp);
-
-    tLastIdleReading = tNow;
-    
-    boolean doorOpenNow = isDoorOpen();
-    if ( doorOpen != doorOpenNow ) {
-      doorOpen = doorOpenNow;
-      displayMainHeader();
-    }
-  }
-}
-
-boolean isDoorOpen() {
-  /* door mag switch is active low */
-  door.update();
-  return !door.read();
-}
-
-void displayMainHeader() {
-  lcd.home();
-  if ( doorOpen ) 
-    lcd.print("   Door Open    ");
-  else
-    lcd.print("Genie Steroids! ");
-}
-
 void displayMenu() {
   menu.display();
   state = STATE_MENU;
@@ -459,117 +450,54 @@ void activateLightRelay(){
   digitalWrite(RELAY_LIGHT, LOW);
 }
 
-void activateDoorRelay(){
-  digitalWrite(RELAY_DOOR, HIGH);
-  delay(RELAY_DELAY);
-  digitalWrite(RELAY_DOOR, LOW);
-}
-
-void displayTime(const int hours, const int minutes, const int seconds) {
-  if ( hours <= 12 )
-    sprintf(sz_time, "%02d:%02d:%02d AM", hours, minutes, seconds);
-  else
-    sprintf(sz_time, "%02d:%02d:%02d PM", hours-12, minutes, seconds);
+void adjustBacklight() {
+  unsigned long tNow = millis();
+  
+  if ( lcdOn && (tLastLightUpdate == 0 || tNow > tLastLightUpdate + INTERVAL_LIGHT_UPDATE) ) {
+    //get the voltage reading from the light sensor
+    int v = analogRead(SENSOR_LIGHT);
+    light_values[light_idx] = map(v, 0, 1024, 16, 255);
+  
+    // Add the new value to the total
+    light_total += light_values[light_idx];
+    
+    light_avg = light_total / N_LIGHT_VALUES;
+    analogWrite(PIN_LCD_BL_PWR, light_avg);
+  
 //#if DBG
-//  Serial.print("Time: '"); Serial.println(sz_time);
+//  Serial.print("LIGHT: ");
+//  for (int i=0; i<N_LIGHT_VALUES; i++) {
+//    Serial.print(light_values[i]);
+//    Serial.print(' ');
+//  }
+//  Serial.println();
+//  Serial.print("light_total: ");
+//  Serial.print(light_total);
+//  Serial.print(", light_avg: ");
+//  Serial.println(light_avg);
 //#endif
   
-  lcd.setCursor(0, 1);
-  lcd.print(sz_time);
-}
-
-void displayTemp(const int scale, const float temp) {
-//#if DBG
-//  Serial.print(temperatureF); Serial.println(" degress F");
-//#endif
-  sprintf(sz_temp, "%3d%c", int(temp), LCD_CHAR_DEGREES);
-//#if DBG
-//  Serial.print("TEMP: "); Serial.println(sz_temp);
-//#endif
-  
-  lcd.setCursor(12, 1);
-  lcd.print(sz_temp);
-}
-
-void readTime(int &hours, int &minutes, int &seconds) {
-  DateTime now = RTC.now();
-  hours = now.hour();
-  minutes = now.minute();
-  seconds = now.second();
-}
-
-void readLight() {
-  //getting the voltage reading from the light sensor
-  light = analogRead(SENSOR_LIGHT);  
-//#if DBG
-//  Serial.print("LIGHT: "); Serial.println(light);
-//#endif
-}
-
-float readTemp(const int scale) {
-  return readTemp_TMP36(scale);
-}
-
-float readTemp_Chronodot(const int scale) {
-  if ( scale == TEMP_F ) {
-    return RTC.now().tempF();
+    //  Move the index
+    light_idx++;
+    if ( light_idx == N_LIGHT_VALUES )
+      light_idx = 0;
+    
+    // Subtract the current value from the total
+    light_total -= light_values[light_idx];
+    
+    tLastLightUpdate = tNow;
   }
-  else {
-    return RTC.now().tempC();
-  }
-}
-
-float readTemp_TMP36(const int scale) {
-  //getting the voltage reading from the temperature sensor
-  int reading = analogRead(SENSOR_TEMP);  
-   
-  // converting that reading to voltage, for 3.3v arduino use 3.3
-  float voltage = reading * 5.0;
-  voltage /= 1024.0; 
-   
-  // print out the voltage
-//#if DBG
-//  Serial.print(voltage); Serial.println(" volts");
-//#endif
-   
-  // now print out the temperature
-  float t = (voltage - 0.5) * 100 ;  //converting from 10 mv per degree wit 500 mV offset
-                                     //to degrees ((volatge - 500mV) times 100)
-//#if DBG
-//  Serial.print(t); Serial.println(" degress C");
-//#endif
-  
-  if ( scale == TEMP_F ) {
-    // now convert to Fahrenheight
-    t = (t * 9.0 / 5.0) + 32.0;
-//#if DBG
-//    Serial.print(t); Serial.println(" degress C");
-//#endif
-  }
-  return t;
 }
 
 void enableLCD() {
-    lcd.display();
-    enableBacklight();
-//#if DBG
-//    Serial.println("LCD ON");
-//#endif
+  lcdOn = true;
+  lcd.display();
+  analogWrite(PIN_LCD_BL_PWR, light_avg);
 }
 
 void disableLCD() {
-    lcd.noDisplay();
-    disableBacklight();
-//#if DBG
-//    Serial.println("LCD OFF");
-//#endif
-}
-
-void enableBacklight() {
-    digitalWrite(PIN_LCD_BL_PWR, HIGH);
-}
-
-void disableBacklight() {
-    digitalWrite(PIN_LCD_BL_PWR, LOW);
+  lcdOn = false;
+  lcd.noDisplay();
+  digitalWrite(PIN_LCD_BL_PWR, LOW);
 }
 
