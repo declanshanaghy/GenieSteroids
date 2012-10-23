@@ -26,7 +26,7 @@ typedef void (*event_cb)(short msg, unsigned long countdown);
 
 class DoorController {
 public:
-  DoorController(event_cb cb, GeniePrefs prefs, short doorSensor, short doorRelay, int doorRelayDelay) 
+  DoorController(event_cb cb, GeniePrefs &prefs, short doorSensor, short doorRelay, int doorRelayDelay) 
     : cb(cb), prefs(prefs), door(doorSensor, 100), doorRelay(doorRelay), doorRelayDelay(doorRelayDelay),
       doorState(STATE_DOOR_CLOSED), tCloseDoorAt(0) {
     pinMode(doorSensor, INPUT); 
@@ -39,8 +39,8 @@ public:
 private:
   void procLoopDoor(unsigned long tNow);
     
-  GeniePrefs &prefs;
   event_cb cb;
+  GeniePrefs &prefs;
   Bounce door;
   short doorState;
   short doorSensor;

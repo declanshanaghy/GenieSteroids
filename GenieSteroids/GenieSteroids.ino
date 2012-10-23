@@ -118,6 +118,12 @@ LcdMenuEntry mKeySound(MENU_1, "Key Press", &hdlrKeySound);
 LcdMenuEntry mBootSound(MENU_2, "Boot Up", &hdlrBootSound);
 LcdMenuEntry mOtherSound(MENU_3, "Confirmations", &hdlrOtherSound);
 
+int freeRam () {
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+}
+
 void setup() {
   Wire.begin();
   Serial.begin(115200);
@@ -138,6 +144,10 @@ void setup() {
 }
 
 void loop() {
+//#if DBG
+//  Serial.print("freeRam: ");
+//  Serial.println(freeRam());
+//#endif
   doorCtrl.loop();
   procLoopKeyPress();
   procLoopState();
@@ -191,7 +201,7 @@ void doorControllerCallback(short msg, unsigned long countdown) {
 }
 
 void setupPrefs() {
-  prefs.load();    
+  prefs.load();
   hdlrKeySound.setValue(prefs.readBoolean(hdlrKeySound.getIdent(), KEY_SOUND_DEFAULT));
   hdlrBootSound.setValue(prefs.readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
   hdlrOtherSound.setValue(prefs.readBoolean(hdlrOtherSound.getIdent(), OTHER_SOUND_DEFAULT));
@@ -382,7 +392,7 @@ void clearHandler(boolean confirmed) {
 //#endif
     }
 
-    prefs.load();    
+    setupPrefs();
     toneConfirm();  
     currentHandler->displayConfirmation();
   }  
