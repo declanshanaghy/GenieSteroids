@@ -10,7 +10,7 @@ void DoorController::loop() {
 
 void DoorController::procLoopDoor(unsigned long tNow) {
   boolean doorOpenNow = isDoorOpen();
-  
+    
   if ( (doorState == STATE_DOOR_OPEN && !doorOpenNow) || 
        (doorState == STATE_DOOR_CLOSED && doorOpenNow) ||
        (doorState == STATE_DOOR_CLOSING && !doorOpenNow) ) {

@@ -28,7 +28,7 @@ class DoorController {
 public:
   DoorController(event_cb cb, GeniePrefs *prefs, short doorSensor, short doorRelay, int doorRelayDelay) 
     : cb(cb), prefs(prefs), door(doorSensor, 100), doorRelay(doorRelay), doorRelayDelay(doorRelayDelay),
-      doorState(STATE_DOOR_CLOSED), tCloseDoorAt(0) {
+      doorState(STATE_DOOR_CLOSED), tCloseDoorAt(0), tLastUpdate(0) {
     pinMode(doorSensor, INPUT); 
     pinMode(doorRelay, OUTPUT); 
   };

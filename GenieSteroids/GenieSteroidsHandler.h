@@ -7,8 +7,6 @@
 #include <AnalogKeypad.h>
 #include "LcdMenuHandler.h"
 
-#define DBG 1
-
 #define INTERVAL_STATE_BEGIN 0
 #define INTERVAL_STATE_FIRST_CHAR 1
 #define INTERVAL_MAX_CHARS 3

@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <Chronodot.h>
 
+#define DBG 1
+
 #define MSG_LOCK_NOW 0           // Notification to lock the door now
 #define MSG_UNLOCK_NOW 1         // Notification to unlock the door now
 

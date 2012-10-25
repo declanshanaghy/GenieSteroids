@@ -14,7 +14,7 @@
 #include "HomeScreen.h"
 #include "LockManager.h"
 
-#define DBG 0
+#define DBG 1
 
 /***************************
   ANALOG PIN DEFINIDTIONS
@@ -66,18 +66,16 @@
 #define LCD_COLS 16
 #define LCD_ROWS 2
 
-#define INTERVAL_LIGHT_UPDATE 100   // How oftent o sample the light reading
-#define N_LIGHT_VALUES 10           // Number of light samples to average
-#define DOOR_ALARM_NOTIFY 10        // Seconds of notification before closing the door
-#define RELAY_DELAY 250             // Hold the relay signal for this long
-#define INPUT_IDLE_TIMEOUT 30000    // How long between keypresses until we go back to idle state
-#define INPUT_IDLE_LCD_OFF 60000    // How long between keypresses until the LCD is disabled
+#define INTERVAL_LIGHT_UPDATE 100    // How oftent o sample the light reading
+#define N_LIGHT_VALUES 10            // Number of light samples to average
+#define DOOR_ALARM_NOTIFY 10         // Seconds of notification before closing the door
+#define RELAY_DELAY 250              // Hold the relay signal for this long
+#define INPUT_IDLE_TIMEOUT 60000     // How long between keypresses until we go back to idle state
+#define INPUT_IDLE_LCD_OFF 300000    // How long between keypresses until the LCD is disabled
 
 /*****************************
   GLOBAL VARS
 ******************************/
-//const DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
-
 boolean lcdOn = false;
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D7, 
                   PIN_LCD_D6, PIN_LCD_D5, PIN_LCD_D4);
@@ -123,7 +121,9 @@ int freeRam () {
 
 void setup() {
   Wire.begin();
+#if DBG
   Serial.begin(115200);
+#endif
 
   state = STATE_IDLE;
   
@@ -138,27 +138,28 @@ void setup() {
   setupMenu();
 
   toneBoot();
-  setupFakeLocks();
+  //setupFakeLocks();
 }
 
-void setupFakeLocks() {
-  DateTime fake = chronodot->now();
-  fake.setDay(fake.day() - 1);
-  fake.setHour(23);
-  fake.setMinute(58);
-  fake.setSecond(0);  
-  chronodot->adjust(fake);
-  
-  DateTime lock = fake;
-  lock.setMinute(59);
-  
-  DateTime unlock = fake;
-  fake.setHour(0);
-  unlock.setMinute(01);
-  fake.setDay(fake.day() + 1);
-  
+//void setupFakeLocks() {
+//  DateTime fake = chronodot->now();
+//  fake.setHour(23);
+//  fake.setMinute(59);
+//  fake.setSecond(50);  
+//  chronodot->adjust(fake);
+//  
+//  DateTime lock = fake;
+//  lock.setHour(23);
+//  lock.setMinute(59);
+//  lock.setSecond(52);  
+//  
+//  DateTime unlock = fake;
+//  unlock.setHour(23);
+//  unlock.setMinute(59);
+//  unlock.setSecond(58);  
+//  
 //  lockMgr->setEvents(lock, unlock) ;
-}
+//}
 
 void loop() {
 //#if DBG
@@ -172,64 +173,68 @@ void loop() {
 }
 
 void lockMgrCallback(short msg, unsigned long countdown) {
-//  switch ( msg ) {
-//  case MSG_LOCK_NOW:
-//    lcd.home();
-//    lcd.print("      LOCK      ");
-//    break;
-//  case MSG_UNLOCK_NOW:
-//    lcd.home();
-//    lcd.print("     UNLOCK     ");
-//    break;
-//  }
+#if DBG
+  Serial.print("MSG (rx): ");
+  Serial.print(msg);
+#endif
+  switch ( msg ) {
+  case MSG_LOCK_NOW:
+    toneNotify();
+    lockDoor();
+    break;
+  case MSG_UNLOCK_NOW:
+    toneNotify();
+    unlockDoor();
+    break;
+  }
 }
 
 void doorControllerCallback(short msg, unsigned long countdown) {
-//  countdown /= 1000;
-//  tLastActivity = millis();
-//  char seconds[2];
-//  
-//  if ( !lcdOn )
-//    enableLCD();
-//  
-//  switch ( msg ) {
-//  case MSG_DOOR_OPEN:
-//    if ( state == STATE_IDLE ) {      
-//      lcd.home();
-//      lcd.print("      OPEN      ");
-//    }
-//    break;
-//  case MSG_DOOR_CLOSED:
-//    homeScreen->display();
-//    break;
-//  case MSG_CLOSE_DOOR_COUNTDOWN:
-//    if ( state == STATE_IDLE ) {
-//      lcd.home();
-//      lcd.print("Close:          ");
-//      lcd.setCursor(7, 0);
-//      lcd.print(countdown/60);
-//      lcd.print(":");
-//      sprintf(seconds, "%02d", countdown % 60);
-//      lcd.print(seconds);
-//      
-//      if ( countdown < DOOR_ALARM_NOTIFY )
-//        toneNotify();
-//    }
-//    break;
-//  case MSG_CLOSE_DOOR_NOW:
-//    if ( state == STATE_IDLE ) {
-//      lcd.home();
-//      lcd.print("    Closing     ");
-//    }
-//    break;
-//  case MSG_DOOR_CLOSE_ERROR:
-//    if ( state == STATE_IDLE ) {
-//      lcd.home();
-//      lcd.print(" CANT CLOSE :-( ");
-//    }
-//    toneAlarm();
-//    break;
-//  }
+  countdown /= 1000;
+  tLastActivity = millis();
+  char seconds[2];
+  
+  if ( !lcdOn )
+    enableLCD();
+  
+  switch ( msg ) {
+  case MSG_DOOR_OPEN:
+    if ( state == STATE_IDLE ) {      
+      lcd.home();
+      lcd.print("      OPEN      ");
+    }
+    break;
+  case MSG_DOOR_CLOSED:
+    homeScreen->display();
+    break;
+  case MSG_CLOSE_DOOR_COUNTDOWN:
+    if ( state == STATE_IDLE ) {
+      lcd.home();
+      lcd.print("Close:          ");
+      lcd.setCursor(7, 0);
+      lcd.print(countdown/60);
+      lcd.print(":");
+      sprintf(seconds, "%02d", countdown % 60);
+      lcd.print(seconds);
+      
+      if ( countdown < DOOR_ALARM_NOTIFY )
+        toneNotify();
+    }
+    break;
+  case MSG_CLOSE_DOOR_NOW:
+    if ( state == STATE_IDLE ) {
+      lcd.home();
+      lcd.print("    Closing     ");
+    }
+    break;
+  case MSG_DOOR_CLOSE_ERROR:
+    if ( state == STATE_IDLE ) {
+      lcd.home();
+      lcd.print(" CANT CLOSE :-( ");
+    }
+    toneAlarm();
+    break;
+  }
 }
 
 void setupPrefs() {
@@ -306,13 +311,13 @@ void setupLCD() {
 void setupChronoDot() {
   chronodot->begin();
 
-//  if (! chronodot.isrunning()) {
-//#if DBG
-//    Serial.println("chronodot is NOT running!");
-//#endif
+  if (! chronodot->isrunning()) {
+    toneAlarm();
+    
     // following line sets the chronodot to the date & time this sketch was compiled
-//    chronodot->adjust(COMPILE_TIME);
-//  }
+    DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
+    chronodot->adjust(COMPILE_TIME);
+  }
 }
 
 void procLoopState() {
@@ -357,9 +362,9 @@ void procLoopKeyPress() {
     
   if ( k != KEY_NONE ) {
     if ( !lcdOn )
-      enableLCD();
+      enableLCD();      
+      toneKey();
       
-    toneKey();
 //#if DBG
 //    Serial.print("Menu key: code="); Serial.println(k);
 //    Serial.print("          char="); Serial.println(c);
@@ -368,7 +373,8 @@ void procLoopKeyPress() {
     tLastActivity = tNow;
     switch (state) {
       case STATE_IDLE:
-        displayMenu();
+        if ( k == KEY_POUND || k == KEY_STAR )
+          displayMenu();
         break;
       case STATE_MENU:
         procLoopStateMenu(k, c);

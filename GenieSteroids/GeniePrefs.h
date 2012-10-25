@@ -5,8 +5,6 @@
 #include <EEPROM.h>
 #include "EEPromAnything.h"
 
-#define DBG 1
-
 //00-09 : Internally reserved 
 #define CFG_UNUSED         0
 
