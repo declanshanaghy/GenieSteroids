@@ -311,10 +311,11 @@ void setupLCD() {
 void setupChronoDot() {
   chronodot->begin();
 
+  // If the chronodot loses power it will indicate that via isrunning()
   if (! chronodot->isrunning()) {
-    toneAlarm();
+    // TODO: Set time to midnight and trigger alarm so user knows the time needs to be set.
     
-    // following line sets the chronodot to the date & time this sketch was compiled
+    // The following line sets the chronodot to the date & time this sketch was compiled
     DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
     chronodot->adjust(COMPILE_TIME);
   }
