@@ -14,7 +14,7 @@
 
 class HomeScreen {
 public:
-  HomeScreen(LiquidCrystal &lcd, Chronodot &chronodot, short pinTempSensor) 
+  HomeScreen(LiquidCrystal &lcd, Chronodot *chronodot, short pinTempSensor) 
     : lcd(lcd), chronodot(chronodot), pinTempSensor(pinTempSensor), 
       tLastDateTime(0), tLastTemp(0) {
       pinMode(pinTempSensor, INPUT); 
@@ -33,8 +33,8 @@ private:
   float readTemp_Chronodot(const int scale);
   float readTemp_TMP36(const int scale);
 
-  Chronodot &chronodot;
   LiquidCrystal &lcd;
+  Chronodot *chronodot;
   short pinTempSensor;
   unsigned long tLastDateTime;
   unsigned long tLastTemp;

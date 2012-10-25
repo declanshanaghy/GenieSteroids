@@ -17,7 +17,7 @@ void DoorController::procLoopDoor(unsigned long tNow) {
     // Door state changed
     if ( doorOpenNow ) {
       // Start the timer for counting down to when the door will be closed
-      tCloseDoorAt = tNow + (prefs.openDuration * 60 * 1000);
+      tCloseDoorAt = tNow + 1000L * 60 * prefs->openDuration;
       doorState = STATE_DOOR_OPEN;
       cb(MSG_DOOR_OPEN, 0);
     }
@@ -35,12 +35,16 @@ void DoorController::procLoopDoor(unsigned long tNow) {
       // Indicate that we are waiting for the door to close
       doorState = STATE_DOOR_CLOSING;
       // Allow DOOR_ALARM_SECONDS minute for the door to close before raising the alarm
-      tCloseDoorAt = tNow + (DOOR_ALARM_SECONDS * 1000);
+      tCloseDoorAt = tNow + (1000L * DOOR_ALARM_SECONDS);
       cb(MSG_CLOSE_DOOR_NOW, 0);
     }
     else {
       // Display how long until door will close
       unsigned long countdown = tCloseDoorAt - tNow;
+//#if DBG
+//  Serial.print("countdown: ");
+//  Serial.println(countdown);
+//#endif
       cb(MSG_CLOSE_DOOR_COUNTDOWN, countdown);
     }    
   }

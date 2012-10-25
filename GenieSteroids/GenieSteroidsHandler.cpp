@@ -154,7 +154,7 @@ void DateHandler::displayStart() {
   lcd->clear();
   lcd->blink();
   lcd->noCursor();
-  dt = RTC.now();
+  dt = chronodot.now();
   displayDate();
 }
 
@@ -327,7 +327,7 @@ boolean DateHandler::procKeyPress(int k, char c) {
       this-> confirmed = false;
       return false;
     case STATE_DT_DATE_CONFIRM:
-      RTC.adjust(dt);
+      chronodot.adjust(dt);
       this-> confirmed = true;
       return false;
     default:
@@ -382,7 +382,7 @@ void TimeHandler::displayStart() {
   lcd->clear();
   lcd->blink();
   lcd->noCursor();
-  dt = RTC.now();
+  dt = chronodot.now();
   displayTime();
 }
 
@@ -515,7 +515,7 @@ boolean TimeHandler::procKeyPress(int k, char c) {
       this-> confirmed = false;
       return false;
     case STATE_DT_TIME_CONFIRM:
-      RTC.adjust(dt);
+      chronodot.adjust(dt);
       this-> confirmed = true;
       return false;
     default:

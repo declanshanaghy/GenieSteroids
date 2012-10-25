@@ -67,7 +67,7 @@ void HomeScreen::displayTemp(const int scale, const float temp) {
 }
 
 void HomeScreen::readTime(int &hours, int &minutes, int &seconds) {
-  DateTime now = chronodot.now();
+  DateTime now = chronodot->now();
   hours = now.hour();
   minutes = now.minute();
   seconds = now.second();
@@ -79,10 +79,10 @@ float HomeScreen::readTemp(const int scale) {
 
 float HomeScreen::readTemp_Chronodot(const int scale) {
   if ( scale == TEMP_F ) {
-    return chronodot.now().tempF();
+    return chronodot->now().tempF();
   }
   else {
-    return chronodot.now().tempC();
+    return chronodot->now().tempC();
   }
 }
 

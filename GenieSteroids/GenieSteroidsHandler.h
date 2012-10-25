@@ -45,8 +45,9 @@ class DateTimeHandler : public LcdMenuHandler {
 public:
   DateTimeHandler(int ident) : LcdMenuHandler(ident) {};
   short getValueType() { return TYPE_LONG; };
+  
 protected:
-  Chronodot RTC;
+  Chronodot chronodot;
   DateTime dt;
   char sz_dt[11];
 };

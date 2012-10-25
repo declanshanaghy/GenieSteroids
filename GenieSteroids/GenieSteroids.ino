@@ -12,8 +12,9 @@
 #include "GenieSteroidsHandler.h"
 #include "DoorController.h"
 #include "HomeScreen.h"
+#include "LockManager.h"
 
-#define DBG 1
+#define DBG 0
 
 /***************************
   ANALOG PIN DEFINIDTIONS
@@ -65,30 +66,27 @@
 #define LCD_COLS 16
 #define LCD_ROWS 2
 
-#define INTERVAL_LIGHT_UPDATE 100
-#define N_LIGHT_VALUES 10
-
-#define RELAY_DELAY 250
-
-// How long between keypresses until we go back to idle state
-#define INPUT_IDLE_TIMEOUT 3000
-
-// How long between keypresses until the LCD is disabled
-#define INPUT_IDLE_LCD_OFF 5000
+#define INTERVAL_LIGHT_UPDATE 100   // How oftent o sample the light reading
+#define N_LIGHT_VALUES 10           // Number of light samples to average
+#define DOOR_ALARM_NOTIFY 10        // Seconds of notification before closing the door
+#define RELAY_DELAY 250             // Hold the relay signal for this long
+#define INPUT_IDLE_TIMEOUT 30000    // How long between keypresses until we go back to idle state
+#define INPUT_IDLE_LCD_OFF 60000    // How long between keypresses until the LCD is disabled
 
 /*****************************
   GLOBAL VARS
 ******************************/
-const DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
+//const DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
 
 boolean lcdOn = false;
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D7, 
                   PIN_LCD_D6, PIN_LCD_D5, PIN_LCD_D4);
-AnalogKeypad kpad = AnalogKeypad(SENSOR_KEYS, REPEAT_OFF, 10000, 1000);
-Chronodot chronodot;
-GeniePrefs prefs;
-HomeScreen homeScreen(lcd, chronodot, SENSOR_TEMP);
-DoorController doorCtrl(&doorControllerCallback, prefs, PIN_DOOR_SENS, RELAY_DOOR, RELAY_DELAY);
+AnalogKeypad *kpad = new AnalogKeypad(SENSOR_KEYS, REPEAT_OFF, 10000, 1000);
+Chronodot *chronodot = new Chronodot();
+GeniePrefs *prefs = new GeniePrefs();
+HomeScreen *homeScreen = new HomeScreen(lcd, chronodot, SENSOR_TEMP);
+DoorController *doorCtrl = new DoorController(&doorControllerCallback, prefs, PIN_DOOR_SENS, RELAY_DOOR, RELAY_DELAY);
+LockManager *lockMgr = new LockManager(&lockMgrCallback);
 
 short light_values[N_LIGHT_VALUES] = {255};
 int light_total = 0;
@@ -113,7 +111,6 @@ LcdMenuEntry mOpenDuration(MENU_1, "Close Timer", &hdlrOpenDuration);
 LcdMenuEntry mDate(MENU_2, "Set Date", &hdlrDate);
 LcdMenuEntry mTime(MENU_3, "Set Time", &hdlrTime);
 LcdMenuEntry mSounds(MENU_4, "Sounds", NULL);
-
 LcdMenuEntry mKeySound(MENU_1, "Key Press", &hdlrKeySound);
 LcdMenuEntry mBootSound(MENU_2, "Boot Up", &hdlrBootSound);
 LcdMenuEntry mOtherSound(MENU_3, "Confirmations", &hdlrOtherSound);
@@ -134,13 +131,33 @@ void setup() {
   pinMode(RELAY_LOCK, OUTPUT); 
   pinMode(PIN_BUZZ, OUTPUT); 
 
-  kpad.init(); 
+  kpad->init(); 
   setupChronoDot();
   setupPrefs();
   setupLCD();  
   setupMenu();
 
   toneBoot();
+  setupFakeLocks();
+}
+
+void setupFakeLocks() {
+  DateTime fake = chronodot->now();
+  fake.setDay(fake.day() - 1);
+  fake.setHour(23);
+  fake.setMinute(58);
+  fake.setSecond(0);  
+  chronodot->adjust(fake);
+  
+  DateTime lock = fake;
+  lock.setMinute(59);
+  
+  DateTime unlock = fake;
+  fake.setHour(0);
+  unlock.setMinute(01);
+  fake.setDay(fake.day() + 1);
+  
+//  lockMgr->setEvents(lock, unlock) ;
 }
 
 void loop() {
@@ -148,64 +165,79 @@ void loop() {
 //  Serial.print("freeRam: ");
 //  Serial.println(freeRam());
 //#endif
-  doorCtrl.loop();
+  lockMgr->loop();
+  doorCtrl->loop();
   procLoopKeyPress();
   procLoopState();
 }
 
-void doorControllerCallback(short msg, unsigned long countdown) {  
-  tLastActivity = millis();
-  
-  if ( !lcdOn )
-    enableLCD();
-  
-  switch ( msg ) {
-  case MSG_DOOR_OPEN:
-    if ( state == STATE_IDLE ) {      
-      lcd.home();
-      lcd.print("      OPEN      ");
-    }
-    break;
-  case MSG_DOOR_CLOSED:
-    homeScreen.display();
-    break;
-  case MSG_CLOSE_DOOR_COUNTDOWN:
-    if ( state == STATE_IDLE ) {
-      lcd.home();
-      lcd.print("Close:          ");
-      lcd.setCursor(7, 0);
-      if ( countdown > 60 ) {
-        lcd.print(countdown/60);
-        lcd.print("m");
-      }
-      else {
-        lcd.print(countdown);
-        lcd.print("s");
-      }
-    }
-    break;
-  case MSG_CLOSE_DOOR_NOW:
-    if ( state == STATE_IDLE ) {
-      lcd.home();
-      lcd.print("    Closing     ");
-    }
-    break;
-  case MSG_DOOR_CLOSE_ERROR:
-    if ( state == STATE_IDLE ) {
-      lcd.home();
-      lcd.print(" CANT CLOSE :-( ");
-    }
-    toneCancel(true);
-    break;
-  }
+void lockMgrCallback(short msg, unsigned long countdown) {
+//  switch ( msg ) {
+//  case MSG_LOCK_NOW:
+//    lcd.home();
+//    lcd.print("      LOCK      ");
+//    break;
+//  case MSG_UNLOCK_NOW:
+//    lcd.home();
+//    lcd.print("     UNLOCK     ");
+//    break;
+//  }
+}
+
+void doorControllerCallback(short msg, unsigned long countdown) {
+//  countdown /= 1000;
+//  tLastActivity = millis();
+//  char seconds[2];
+//  
+//  if ( !lcdOn )
+//    enableLCD();
+//  
+//  switch ( msg ) {
+//  case MSG_DOOR_OPEN:
+//    if ( state == STATE_IDLE ) {      
+//      lcd.home();
+//      lcd.print("      OPEN      ");
+//    }
+//    break;
+//  case MSG_DOOR_CLOSED:
+//    homeScreen->display();
+//    break;
+//  case MSG_CLOSE_DOOR_COUNTDOWN:
+//    if ( state == STATE_IDLE ) {
+//      lcd.home();
+//      lcd.print("Close:          ");
+//      lcd.setCursor(7, 0);
+//      lcd.print(countdown/60);
+//      lcd.print(":");
+//      sprintf(seconds, "%02d", countdown % 60);
+//      lcd.print(seconds);
+//      
+//      if ( countdown < DOOR_ALARM_NOTIFY )
+//        toneNotify();
+//    }
+//    break;
+//  case MSG_CLOSE_DOOR_NOW:
+//    if ( state == STATE_IDLE ) {
+//      lcd.home();
+//      lcd.print("    Closing     ");
+//    }
+//    break;
+//  case MSG_DOOR_CLOSE_ERROR:
+//    if ( state == STATE_IDLE ) {
+//      lcd.home();
+//      lcd.print(" CANT CLOSE :-( ");
+//    }
+//    toneAlarm();
+//    break;
+//  }
 }
 
 void setupPrefs() {
-  prefs.load();
-  hdlrKeySound.setValue(prefs.readBoolean(hdlrKeySound.getIdent(), KEY_SOUND_DEFAULT));
-  hdlrBootSound.setValue(prefs.readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
-  hdlrOtherSound.setValue(prefs.readBoolean(hdlrOtherSound.getIdent(), OTHER_SOUND_DEFAULT));
-  hdlrOpenDuration.setValue(prefs.readInt(hdlrOpenDuration.getIdent(), OPEN_DURATION_DEFAULT));
+  prefs->load();
+  hdlrKeySound.setValue(prefs->readBoolean(hdlrKeySound.getIdent(), KEY_SOUND_DEFAULT));
+  hdlrBootSound.setValue(prefs->readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
+  hdlrOtherSound.setValue(prefs->readBoolean(hdlrOtherSound.getIdent(), OTHER_SOUND_DEFAULT));
+  hdlrOpenDuration.setValue(prefs->readInt(hdlrOpenDuration.getIdent(), OPEN_DURATION_DEFAULT));  
 }
 
 void setupMenu() {
@@ -222,29 +254,39 @@ void setupMenu() {
 }
 
 void toneBoot() {
-  if ( prefs.bootSound )
+  if ( prefs->bootSound )
     tone(PIN_BUZZ, 4000, 50);
 }
 
 void toneKey() {
-  if ( prefs.keySounds )
+  if ( prefs->keySounds )
     tone(PIN_BUZZ, 3000, 10);
 }
 
 void toneConfirm() {
-  if ( prefs.otherSounds ) {
+  if ( prefs->otherSounds ) {
     tone(PIN_BUZZ, 1000, 100);
     delay(100);
     tone(PIN_BUZZ, 2000, 200);
   }
 }
 
-void toneCancel(boolean force) {
-  if ( force || prefs.otherSounds ) {
+void toneCancel() {
+  if ( prefs->otherSounds ) {
     tone(PIN_BUZZ, 1000, 100);
     delay(100);
     tone(PIN_BUZZ, 500, 200);
   }
+}
+
+void toneNotify() {
+  tone(PIN_BUZZ, 2000, 200);
+}
+
+void toneAlarm() {
+  tone(PIN_BUZZ, 1000, 100);
+  delay(100);
+  tone(PIN_BUZZ, 500, 200);
 }
 
 void toneInvalid() {
@@ -258,18 +300,18 @@ void setupLCD() {
   pinMode(PIN_LCD_BL_PWR, OUTPUT); 
   enableLCD();
   
-  homeScreen.display();
+  homeScreen->display();
 }
 
 void setupChronoDot() {
-  chronodot.begin();
+  chronodot->begin();
 
 //  if (! chronodot.isrunning()) {
 //#if DBG
 //    Serial.println("chronodot is NOT running!");
 //#endif
     // following line sets the chronodot to the date & time this sketch was compiled
-    chronodot.adjust(COMPILE_TIME);
+//    chronodot->adjust(COMPILE_TIME);
 //  }
 }
 
@@ -278,7 +320,7 @@ void procLoopState() {
 
   switch (state) {
     case STATE_IDLE:
-      homeScreen.loop();
+      homeScreen->loop();
       break;
   }
   
@@ -304,14 +346,14 @@ void procLoopState() {
 void setIdle() {
   state = STATE_IDLE;
   menu.reset();
-  homeScreen.display();
+  homeScreen->display();
 }
 
 void procLoopKeyPress() {
   unsigned long tNow = millis();
   
-  int k = kpad.readKey();
-  char c = kpad.getLastKeyChar();
+  int k = kpad->readKey();
+  char c = kpad->getLastKeyChar();
     
   if ( k != KEY_NONE ) {
     if ( !lcdOn )
@@ -378,13 +420,13 @@ void clearHandler(boolean confirmed) {
 //#endif
     switch ( currentHandler->getValueType() ) {
       case TYPE_SHORT:
-        prefs.writeShort(currentHandler->getIdent(), currentHandler->getValue());
+        prefs->writeShort(currentHandler->getIdent(), currentHandler->getValue());
         break;
       case TYPE_INT:
-        prefs.writeInt(currentHandler->getIdent(), currentHandler->getValue());
+        prefs->writeInt(currentHandler->getIdent(), currentHandler->getValue());
         break;
       case TYPE_LONG:
-        prefs.writeLong(currentHandler->getIdent(), currentHandler->getValue());
+        prefs->writeLong(currentHandler->getIdent(), currentHandler->getValue());
         break;
 //      default:
 //#if DBG
@@ -400,7 +442,7 @@ void clearHandler(boolean confirmed) {
 //#if DBG
 //    Serial.println("Canceling handler");
 //#endif
-    toneCancel(false);  
+    toneCancel();
     currentHandler->displayCancellation();
   }  
 
@@ -450,8 +492,12 @@ void displayMenu() {
   state = STATE_MENU;
 }
 
-void toggleLockRelay(){
-  digitalWrite(RELAY_LOCK, !digitalRead(RELAY_LOCK));
+void lockDoor(){
+  digitalWrite(RELAY_LOCK, HIGH);
+}
+
+void unlockDoor(){
+  digitalWrite(RELAY_LOCK, LOW);
 }
 
 void activateLightRelay(){
