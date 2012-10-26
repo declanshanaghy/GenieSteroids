@@ -32,7 +32,8 @@ public:
     pinMode(doorSensor, INPUT); 
     pinMode(doorRelay, OUTPUT); 
   };
-  void loop();
+  void loop(unsigned long tNow);
+  void reset() { tLastUpdate = 0; };
   boolean isDoorOpen();
   void activateDoorRelay();
   

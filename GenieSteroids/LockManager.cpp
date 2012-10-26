@@ -9,9 +9,12 @@ LockManager::LockManager(event_cb cb) : cb(cb), tLastUpdate(0), tMidnight(0) {
   events[1].tCpu = 0;
 }
 
-void LockManager::loop() {
-  unsigned long tNow = millis();
-  if ( tLastUpdate == 0 || tNow > tLastUpdate + LOOP_UPDATE_INTERVAL ) {
+void LockManager::loop(unsigned long tNow) {
+//#if DBG
+//  Serial.print("LockManager::loop: ");
+//  Serial.println(tNow);
+//#endif
+  if ( tLastUpdate == 0 || tNow - tLastUpdate > LOOP_UPDATE_INTERVAL ) {
     procLoopLockMgr(tNow);
     tLastUpdate = tNow;
   }  
@@ -20,7 +23,7 @@ void LockManager::loop() {
 void LockManager::procLoopLockMgr(unsigned long tNow) {
   // Check if midnight just passed and the event times should be updated
 //#if DBG
-//  Serial.print("loop: ");
+//  Serial.print("LockManager::procLoopLockMgr: ");
 //  Serial.println(tNow);
 //#endif
 
@@ -83,34 +86,34 @@ void LockManager::recalcEvents() {
 }
 
 void LockManager::setEvents(DateTime lock, DateTime unlock) { 
-#if DBG
-  Serial.println("setEvents...");
-#endif
+//#if DBG
+//  Serial.println("setEvents...");
+//#endif
   events[0].dt = lock; 
   events[0].tCpu = dateTimeToCpuTime(lock); 
   
-//  events[1].dt = unlock;
-//  events[1].tCpu = dateTimeToCpuTime(unlock);  
-#if DBG
-  Serial.print("now: ");
-  Serial.println(millis());
-  Serial.print("lock: ");
-  Serial.println(events[0].tCpu);
-#endif
+  events[1].dt = unlock;
+  events[1].tCpu = dateTimeToCpuTime(unlock);  
+//#if DBG
+//  Serial.print("now: ");
+//  Serial.println(millis());
+//  Serial.print("lock: ");
+//  Serial.println(events[0].tCpu);
+//#endif
 }
 
 unsigned long LockManager::dateTimeToCpuTime(DateTime dt) {
   DateTime now = chronodot.now();
   
-#if DBG
-  Serial.println("dateTimeToCpuTime...");
-  Serial.print("dt.hour");
-  Serial.println(dt.hour());
-  Serial.print("dt.minute");
-  Serial.println(dt.minute());
-  Serial.print("dt.second");
-  Serial.println(dt.second());
-#endif
+//#if DBG
+//  Serial.println("dateTimeToCpuTime...");
+//  Serial.print("dt.hour: ");
+//  Serial.println(dt.hour());
+//  Serial.print("dt.minute: ");
+//  Serial.println(dt.minute());
+//  Serial.print("dt.second: ");
+//  Serial.println(dt.second());
+//#endif
 
   // We only care about time, not date
   dt.setYear(now.year());
@@ -119,12 +122,12 @@ unsigned long LockManager::dateTimeToCpuTime(DateTime dt) {
   
   long diff = dt.unixtime() - now.unixtime();
   unsigned long cpu = (1000L * diff) + millis();   
-#if DBG
-  Serial.print("diff: ");
-  Serial.println(diff);
-  Serial.print("cpu: ");
-  Serial.println(cpu);
-#endif
+//#if DBG
+//  Serial.print("diff: ");
+//  Serial.println(diff);
+//  Serial.print("cpu: ");
+//  Serial.println(cpu);
+//#endif
   if ( diff > 0 )
     return cpu;
   else

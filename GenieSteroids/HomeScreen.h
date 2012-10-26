@@ -12,15 +12,21 @@
 
 #define LCD_CHAR_DEGREES 223
 
+#define COL_TIME 1
+#define COL_TEMP 11
+
 class HomeScreen {
 public:
-  HomeScreen(LiquidCrystal &lcd, Chronodot *chronodot, short pinTempSensor) 
-    : lcd(lcd), chronodot(chronodot), pinTempSensor(pinTempSensor), 
+  HomeScreen(LiquidCrystal &lcd, Chronodot *chronodot, short pinTempSensor, boolean locked) 
+    : lcd(lcd), chronodot(chronodot), pinTempSensor(pinTempSensor), locked(locked),
       tLastDateTime(0), tLastTemp(0) {
       pinMode(pinTempSensor, INPUT); 
   };
-  void loop();
+  void loop(unsigned long tNow);
+  void reset() { tLastDateTime = 0; tLastTemp = 0; };
   void display();
+  void setLocked(boolean locked) { this->locked = locked; displayHeader(); };
+  boolean isLocked() { return locked; };
   
 private:
   void displayHeader();
@@ -36,9 +42,10 @@ private:
   LiquidCrystal &lcd;
   Chronodot *chronodot;
   short pinTempSensor;
+  boolean locked;
   unsigned long tLastDateTime;
   unsigned long tLastTemp;
-  char sz_time[12];// = "00:00:00 AM";
+  char sz_time[9];// = "00:00:00";
   char sz_temp[5];// = "999F";
 };
 

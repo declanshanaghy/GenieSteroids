@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <Chronodot.h>
 
-#define DBG 0
+#define DBG 1
 
 #define MSG_LOCK_NOW 0           // Notification to lock the door now
 #define MSG_UNLOCK_NOW 1         // Notification to unlock the door now
@@ -23,7 +23,8 @@ class LockManager {
 public:
   LockManager(event_cb cb);
   void setEvents(DateTime lock, DateTime unlock);
-  void loop();
+  void loop(unsigned long tNow);
+  void reset() { tLastUpdate = 0; };
   
 private:
   unsigned long dateTimeToCpuTime(DateTime dt);

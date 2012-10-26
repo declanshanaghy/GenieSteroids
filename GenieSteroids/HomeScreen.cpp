@@ -1,15 +1,17 @@
 
 #include "HomeScreen.h"
 
-void HomeScreen::loop() {
-  unsigned long tNow = millis();
-
-  if (tLastDateTime == 0 || tNow > tLastDateTime + LOOP_UPDATE_INTERVAL) {
+void HomeScreen::loop(unsigned long tNow) {
+#if DBG
+  Serial.print("HomeScreen::loop: ");
+  Serial.println(tNow);
+#endif
+  if (tLastDateTime == 0 || tNow - tLastDateTime > LOOP_UPDATE_INTERVAL) {
     displayDateTime();
     tLastDateTime = tNow;
   }
   
-  if (tLastTemp == 0 || tNow > tLastTemp + LOOP_UPDATE_INTERVAL * 10) {
+  if (tLastTemp == 0 || tNow - tLastTemp > (LOOP_UPDATE_INTERVAL * 10)) {
     displayTemp();
     tLastTemp = tNow;
   }
@@ -21,14 +23,22 @@ void HomeScreen::display() {
   lcd.noCursor();
   displayHeader();
   displayDateTime();
+  displayTemp();
 }
 
 void HomeScreen::displayHeader() {
   lcd.home();
-  lcd.print("Genie Steroids! ");
+  if (locked)
+    lcd.print("   LOCKED :-)   ");
+  else
+    lcd.print(" GenieSteroids! ");
 }
 
 void HomeScreen::displayDateTime() {
+#if DBG
+  Serial.print("HomeScreen::displayDateTime: ");
+  Serial.println(tNow);
+#endif
   int hours=0, minutes=0, seconds=0;
 
   readTime(hours, minutes, seconds);
@@ -36,20 +46,21 @@ void HomeScreen::displayDateTime() {
 }
 
 void HomeScreen::displayTemp() {
+#if DBG
+  Serial.print("HomeScreen::displayTemp: ");
+  Serial.println(tNow);
+#endif
   float temp = readTemp(TEMP_F);
   displayTemp(TEMP_F, temp);
 }
 
 void HomeScreen::displayTime(const int hours, const int minutes, const int seconds) {
-  if ( hours <= 12 )
-    sprintf(sz_time, "%02d:%02d:%02d AM", hours, minutes, seconds);
-  else
-    sprintf(sz_time, "%02d:%02d:%02d PM", hours-12, minutes, seconds);
+  sprintf(sz_time, "%02d:%02d:%02d", hours, minutes, seconds);
 //#if DBG
 //  Serial.print("Time: '"); Serial.println(sz_time);
 //#endif
   
-  lcd.setCursor(0, 1);
+  lcd.setCursor(COL_TIME, 1);
   lcd.print(sz_time);
 }
 
@@ -62,7 +73,7 @@ void HomeScreen::displayTemp(const int scale, const float temp) {
 //  Serial.print("TEMP: "); Serial.println(sz_temp);
 //#endif
   
-  lcd.setCursor(12, 1);
+  lcd.setCursor(COL_TEMP, 1);
   lcd.print(sz_temp);
 }
 

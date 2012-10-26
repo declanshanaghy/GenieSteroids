@@ -63,6 +63,8 @@
 /***************************
   OTHER CONSTANTS
 ****************************/
+#define MAX_ULONG 4294967295L
+
 #define LCD_COLS 16
 #define LCD_ROWS 2
 
@@ -76,13 +78,14 @@
 /*****************************
   GLOBAL VARS
 ******************************/
+unsigned long tNow = 0;  // Tracks current cpu time
 boolean lcdOn = false;
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D7, 
                   PIN_LCD_D6, PIN_LCD_D5, PIN_LCD_D4);
 AnalogKeypad *kpad = new AnalogKeypad(SENSOR_KEYS, REPEAT_OFF, 10000, 1000);
 Chronodot *chronodot = new Chronodot();
 GeniePrefs *prefs = new GeniePrefs();
-HomeScreen *homeScreen = new HomeScreen(lcd, chronodot, SENSOR_TEMP);
+HomeScreen *homeScreen = new HomeScreen(lcd, chronodot, SENSOR_TEMP, false);
 DoorController *doorCtrl = new DoorController(&doorControllerCallback, prefs, PIN_DOOR_SENS, RELAY_DOOR, RELAY_DELAY);
 LockManager *lockMgr = new LockManager(&lockMgrCallback);
 
@@ -128,6 +131,7 @@ void setup() {
   Wire.begin();
 #if DBG
   Serial.begin(115200);
+  Serial.println("SETUP");
 #endif
 
   state = STATE_IDLE;
@@ -141,7 +145,8 @@ void setup() {
   setupPrefs();
   setupLCD();  
   setupMenu();
-
+  unlockDoor();
+  
   toneBoot();
   //setupFakeLocks();
 }
@@ -167,21 +172,36 @@ void setup() {
 //}
 
 void loop() {
+  unsigned long _tNow = millis();
+  if ( _tNow < tNow  ) // millis has rolled over (approximately every 50 days)
+    rollover();
+  tNow = _tNow;
+  
 //#if DBG
-//  Serial.print("freeRam: ");
-//  Serial.println(freeRam());
+//  Serial.print("tNow: ");
+//  Serial.println(tNow);
 //#endif
-  lockMgr->loop();
-  doorCtrl->loop();
-  procLoopKeyPress();
-  procLoopState();
+
+  lockMgr->loop(tNow);
+  doorCtrl->loop(tNow);
+  procLoopKeyPress(tNow);
+  procLoopState(tNow);
+}
+
+void rollover() {
+  tLastLightUpdate = 0;
+  recordActivity(false);
+  lockMgr->reset();
+  doorCtrl->reset();
+  homeScreen->reset();
 }
 
 void lockMgrCallback(short msg, unsigned long countdown) {
-#if DBG
-  Serial.print("MSG (rx): ");
-  Serial.println(msg);
-#endif
+//#if DBG
+//  Serial.print("MSG (rx): ");
+//  Serial.println(msg);
+//#endif
+  
   switch ( msg ) {
   case MSG_LOCK_NOW:
     toneNotify();
@@ -194,13 +214,17 @@ void lockMgrCallback(short msg, unsigned long countdown) {
   }
 }
 
+void recordActivity(boolean enableLcd) {
+  tLastActivity = tNow;
+  if ( enableLcd && !lcdOn )
+    enableLCD();
+}
+
 void doorControllerCallback(short msg, unsigned long countdown) {
   countdown /= 1000;
-  tLastActivity = millis();
   char seconds[2];
   
-  if ( !lcdOn )
-    enableLCD();
+  recordActivity(true);
   
   switch ( msg ) {
   case MSG_DOOR_OPEN:
@@ -215,8 +239,8 @@ void doorControllerCallback(short msg, unsigned long countdown) {
   case MSG_CLOSE_DOOR_COUNTDOWN:
     if ( state == STATE_IDLE ) {
       lcd.home();
-      lcd.print("Close:          ");
-      lcd.setCursor(7, 0);
+      lcd.print("  Close:        ");
+      lcd.setCursor(9, 0);
       lcd.print(countdown/60);
       lcd.print(":");
       sprintf(seconds, "%02d", countdown % 60);
@@ -323,40 +347,35 @@ void setupChronoDot() {
   chronodot->begin();
 
   // If the chronodot loses power it will indicate that via isrunning()
-  if (! chronodot->isrunning()) {
+//  if (! chronodot->isrunning()) {
     // TODO: Set time to midnight and trigger alarm so user knows the time needs to be set.
     
     // The following line sets the chronodot to the date & time this sketch was compiled
     DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
     chronodot->adjust(COMPILE_TIME);
-  }
+//  }
 }
 
-void procLoopState() {
-  unsigned long tNow = millis();
-
+void procLoopState(unsigned long tNow) {
   switch (state) {
     case STATE_IDLE:
-      homeScreen->loop();
+      homeScreen->loop(tNow);
       break;
   }
   
-  if (state != STATE_IDLE && tNow > tLastActivity + INPUT_IDLE_TIMEOUT) {
-//#if DBG
-//    Serial.print("Idle timeout: "); Serial.println(tNow - tLastKeyPress);
-//#endif
+  if (state != STATE_IDLE && tNow - tLastActivity > INPUT_IDLE_TIMEOUT) {
     setIdle();
   }
     
-  if (state == STATE_IDLE && tNow > tLastActivity + INPUT_IDLE_LCD_OFF) {
+  if (state == STATE_IDLE && tNow - tLastActivity > INPUT_IDLE_LCD_OFF) {
 //#if DBG
-//    Serial.print("Idle timeout (lcd off): "); Serial.println(tNow - tLastKeyPress);
+//    Serial.println("LCD timeout");
 //#endif
     disableLCD();    
   }
   else {
     //Things to do in every state
-    adjustBacklight();
+    adjustBacklight(tNow);
   }
 }
 
@@ -366,13 +385,15 @@ void setIdle() {
   homeScreen->display();
 }
 
-void procLoopKeyPress() {
-  unsigned long tNow = millis();
-  
+void procLoopKeyPress(unsigned long tNow) {  
   int k = kpad->readKey();
   char c = kpad->getLastKeyChar();
     
   if ( k != KEY_NONE ) {
+//#if DBG
+//  Serial.print("procLoopKeyPress: ");
+//  Serial.println(k);
+//#endif
     if ( !lcdOn )
       enableLCD();      
       toneKey();
@@ -382,7 +403,8 @@ void procLoopKeyPress() {
 //    Serial.print("          char="); Serial.println(c);
 //#endif
     
-    tLastActivity = tNow;
+    recordActivity(true);
+    
     switch (state) {
       case STATE_IDLE:
         if ( k == KEY_POUND || k == KEY_STAR )
@@ -511,10 +533,12 @@ void displayMenu() {
 }
 
 void lockDoor(){
+  homeScreen->setLocked(true);
   digitalWrite(RELAY_LOCK, HIGH);
 }
 
 void unlockDoor(){
+  homeScreen->setLocked(false);
   digitalWrite(RELAY_LOCK, LOW);
 }
 
@@ -524,10 +548,11 @@ void activateLightRelay(){
   digitalWrite(RELAY_LIGHT, LOW);
 }
 
-void adjustBacklight() {
-  unsigned long tNow = millis();
-  
+void adjustBacklight(unsigned long tNow) {  
   if ( lcdOn && (tLastLightUpdate == 0 || tNow > tLastLightUpdate + INTERVAL_LIGHT_UPDATE) ) {
+//#if DBG
+//  Serial.println("adjustBacklight");
+//#endif
     //get the voltage reading from the light sensor
     int v = analogRead(SENSOR_LIGHT);
     light_values[light_idx] = map(v, 0, 1024, 16, 255);
@@ -564,14 +589,24 @@ void adjustBacklight() {
 }
 
 void enableLCD() {
-  lcdOn = true;
-  lcd.display();
-  analogWrite(PIN_LCD_BL_PWR, light_avg);
+  if ( !lcdOn ) {
+//#if DBG
+//  Serial.println("enableLCD");
+//#endif
+    lcdOn = true;
+    lcd.display();
+    analogWrite(PIN_LCD_BL_PWR, light_avg);
+  }
 }
 
 void disableLCD() {
-  lcdOn = false;
-  lcd.noDisplay();
-  digitalWrite(PIN_LCD_BL_PWR, LOW);
+  if ( lcdOn ) {
+//#if DBG
+//  Serial.println("disableLCD");
+//#endif
+    lcdOn = false;
+    lcd.noDisplay();
+    digitalWrite(PIN_LCD_BL_PWR, LOW);
+  }
 }
 

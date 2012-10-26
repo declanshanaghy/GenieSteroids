@@ -1,8 +1,7 @@
 #include "DoorController.h"
 
-void DoorController::loop() {
-  unsigned long tNow = millis();
-  if ( tLastUpdate == 0 || tNow > tLastUpdate + LOOP_UPDATE_INTERVAL ) {
+void DoorController::loop(unsigned long tNow) {
+  if ( tLastUpdate == 0 || tNow - tLastUpdate > LOOP_UPDATE_INTERVAL ) {
     procLoopDoor(tNow);
     tLastUpdate = tNow;
   }
