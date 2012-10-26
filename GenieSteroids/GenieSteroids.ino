@@ -72,8 +72,8 @@
 #define N_LIGHT_VALUES 10            // Number of light samples to average
 #define DOOR_ALARM_NOTIFY 10         // Seconds of notification before closing the door
 #define RELAY_DELAY 250              // Hold the relay signal for this long
-#define INPUT_IDLE_TIMEOUT 60000     // How long between keypresses until we go back to idle state
-#define INPUT_IDLE_LCD_OFF 300000    // How long between keypresses until the LCD is disabled
+#define INPUT_IDLE_TIMEOUT 60000L    // How long between keypresses until we go back to idle state
+#define INPUT_IDLE_LCD_OFF 300000L   // How long between keypresses until the LCD is disabled
 
 /*****************************
   GLOBAL VARS
@@ -347,13 +347,13 @@ void setupChronoDot() {
   chronodot->begin();
 
   // If the chronodot loses power it will indicate that via isrunning()
-//  if (! chronodot->isrunning()) {
+  if (! chronodot->isrunning()) {
     // TODO: Set time to midnight and trigger alarm so user knows the time needs to be set.
     
     // The following line sets the chronodot to the date & time this sketch was compiled
     DateTime COMPILE_TIME = DateTime(__DATE__, __TIME__);
     chronodot->adjust(COMPILE_TIME);
-//  }
+  }
 }
 
 void procLoopState(unsigned long tNow) {
