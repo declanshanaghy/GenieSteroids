@@ -5,6 +5,8 @@
 #include <EEPROM.h>
 #include "EEPromAnything.h"
 
+#define DBG 0
+
 //00-09 : Internally reserved 
 #define CFG_UNUSED         0
 
@@ -19,11 +21,15 @@
 #define CFG_KEY_SOUND      50
 #define CFG_BACKLIGHT      60
 #define CFG_OTHER_SOUND    70
+#define CFG_LOCK1          80
+#define CFG_UNLOCK1        84
 
 #define OPEN_DURATION_DEFAULT  10
 #define KEY_SOUND_DEFAULT      true
 #define BOOT_SOUND_DEFAULT     true
 #define OTHER_SOUND_DEFAULT    true
+#define LOCK1_DEFAULT          0
+#define UNLOCK1_DEFAULT        0
 
 #define DEFAULT_SHORT  0xFF
 #define DEFAULT_INT    0xFFFF
@@ -62,6 +68,10 @@ public:
   
   // Whether to play sounds upon confirmation & cancel
   boolean otherSounds;
+  
+  // Times to lock and unlock the door
+  long lock1;
+  long unlock1;
 };
 
 #endif //GENIEPREFS_H

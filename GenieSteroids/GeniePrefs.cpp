@@ -15,6 +15,12 @@ short GeniePrefs::readShort(int address, short vDefault) {
 }
 
 void GeniePrefs::writeShort(int address, short value) {
+//#if DBG
+//  Serial.print("GeniePrefs::writeShort: ");
+//  Serial.print(address);
+//  Serial.print(" = ");
+//  Serial.println(value);
+//#endif
   EEPROM.write(address, value);
 }
 
@@ -27,6 +33,12 @@ int GeniePrefs::readInt(int address, int vDefault) {
 }
 
 void GeniePrefs::writeInt(int address, int value) {
+//#if DBG
+//  Serial.print("GeniePrefs::writeInt: ");
+//  Serial.print(address);
+//  Serial.print(" = ");
+//  Serial.println(value);
+//#endif
   EEPROM_writeAnything(address, value);
 }
 
@@ -35,10 +47,22 @@ long GeniePrefs::readLong(int address, long vDefault) {
   EEPROM_readAnything(address, v);
   if ( v == DEFAULT_LONG )
     v = vDefault;
+//#if DBG
+//  Serial.print("GeniePrefs::readLong: ");
+//  Serial.print(address);
+//  Serial.print(" = ");
+//  Serial.println(v);
+//#endif
   return v;
 }
 
 void GeniePrefs::writeLong(int address, long value) {
+//#if DBG
+//  Serial.print("GeniePrefs::writeLong: ");
+//  Serial.print(address);
+//  Serial.print(" = ");
+//  Serial.println(value);
+//#endif
   EEPROM_writeAnything(address, value);
 }
 
@@ -62,6 +86,8 @@ void GeniePrefs::load() {
   keySounds = readBoolean(CFG_KEY_SOUND, KEY_SOUND_DEFAULT);
   bootSound = readBoolean(CFG_BOOT_SOUND, BOOT_SOUND_DEFAULT);
   otherSounds = readBoolean(CFG_OTHER_SOUND, OTHER_SOUND_DEFAULT);
+  lock1 = readLong(CFG_LOCK1, LOCK1_DEFAULT);
+  unlock1 = readLong(CFG_UNLOCK1, UNLOCK1_DEFAULT);
 //#if DBG
 //  Serial.println("GeniePrefs::load complete");
 //#endif
@@ -77,6 +103,8 @@ void GeniePrefs::save() {
   writeBoolean(CFG_KEY_SOUND, keySounds);
   writeBoolean(CFG_BOOT_SOUND, bootSound);
   writeBoolean(CFG_OTHER_SOUND, otherSounds);
+  writeLong(CFG_LOCK1, lock1);
+  writeLong(CFG_UNLOCK1, unlock1);
 //#if DBG
 //  Serial.println("GeniePrefs::save complete");
 //#endif
@@ -90,6 +118,8 @@ void GeniePrefs::resetToDefault() {
   keySounds = KEY_SOUND_DEFAULT;
   bootSound = BOOT_SOUND_DEFAULT;
   otherSounds = OTHER_SOUND_DEFAULT;
+  lock1 = LOCK1_DEFAULT;
+  unlock1 = UNLOCK1_DEFAULT;
   save();
 //#if DBG
 //  Serial.println("GeniePrefs::resetToDefaults complete");

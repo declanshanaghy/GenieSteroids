@@ -12,6 +12,8 @@
 #define INTERVAL_MAX_CHARS 3
 #define INTERVAL_STATE_END INTERVAL_STATE_FIRST_CHAR + INTERVAL_MAX_CHARS
 
+#define DBG 0
+
 class GenericSoundHandler : public LcdMenuHandler {
 public:
   GenericSoundHandler(int ident) : LcdMenuHandler(ident) {};
@@ -29,8 +31,8 @@ private:
   void storeValue();
   
 public:
-  virtual short getValueType() { return TYPE_INT; };
   IntervalHandler(int ident) : LcdMenuHandler(ident) {};
+  virtual short getValueType() { return TYPE_LONG; };
   void displayStart();
   boolean procKeyPress(int k, char c);
 };
@@ -38,13 +40,15 @@ public:
 
 static prog_uchar DAYS_IN_MONTH[] PROGMEM = { 31,28,31,30,31,30,31,31,30,31,30,31 };
 
-
 class DateTimeHandler : public LcdMenuHandler {
 public:
   DateTimeHandler(int ident) : LcdMenuHandler(ident) {};
-  short getValueType() { return TYPE_LONG; };
+  virtual short getValueType() { return TYPE_LONG; };
+  DateTime getDateTime() { return dt; };
   
 protected:
+  virtual void setConfirmed() { confirmed = true; };
+
   Chronodot chronodot;
   DateTime dt;
   char sz_dt[11];
@@ -64,8 +68,19 @@ class DateHandler : public DateTimeHandler {
 public:
   DateHandler(int ident) : DateTimeHandler(ident) {};
   boolean procKeyPress(int k, char c);
-  void displayStart();
-  void displayDate();
+  virtual void displayStart();
+  
+protected:
+  void displayDate();  
+};
+
+class ChronodotDateHandler : public DateHandler {
+public:
+  ChronodotDateHandler(int ident) : DateHandler(ident) {};
+  virtual void displayStart();
+  
+protected:
+  virtual void setConfirmed();
 };
 
 #define STATE_DT_TIME_BEGIN   0
@@ -80,8 +95,28 @@ class TimeHandler : public DateTimeHandler {
 public:
   TimeHandler(int ident) : DateTimeHandler(ident) {};
   boolean procKeyPress(int k, char c);
-  void displayStart();
+  virtual void displayStart();
+  
+protected:
+  virtual void setConfirmed();
   void displayTime();
 };
 
+class ChronodotTimeHandler : public TimeHandler {
+public:
+  ChronodotTimeHandler(int ident) : TimeHandler(ident) {};
+  virtual void displayStart();
+  
+protected:
+  virtual void setConfirmed();
+};
+
+class TimeOfDayHandler : public TimeHandler {
+public:
+  TimeOfDayHandler(int ident) : TimeHandler(ident) {};
+  virtual void displayStart();
+  virtual void setValue(long value);
+};
+
+  
 #endif //GENIESTEROIDSHANDLER_H

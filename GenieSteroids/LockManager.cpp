@@ -83,37 +83,50 @@ void LockManager::recalcEvents() {
 }
 
 void LockManager::setEvents(DateTime lock, DateTime unlock) { 
-//#if DBG
-//  Serial.print("setEvents...");
-//#endif
+#if DBG
+  Serial.println("setEvents...");
+#endif
   events[0].dt = lock; 
   events[0].tCpu = dateTimeToCpuTime(lock); 
   
-  events[1].dt = unlock;
-  events[1].tCpu = dateTimeToCpuTime(unlock);  
-//#if DBG
-//  Serial.print("now: ");
-//  Serial.println(millis());
-//  Serial.print("lock: ");
-//  Serial.println(events[0].tCpu);
-//#endif
+//  events[1].dt = unlock;
+//  events[1].tCpu = dateTimeToCpuTime(unlock);  
+#if DBG
+  Serial.print("now: ");
+  Serial.println(millis());
+  Serial.print("lock: ");
+  Serial.println(events[0].tCpu);
+#endif
 }
 
 unsigned long LockManager::dateTimeToCpuTime(DateTime dt) {
   DateTime now = chronodot.now();
   
+#if DBG
+  Serial.println("dateTimeToCpuTime...");
+  Serial.print("dt.hour");
+  Serial.println(dt.hour());
+  Serial.print("dt.minute");
+  Serial.println(dt.minute());
+  Serial.print("dt.second");
+  Serial.println(dt.second());
+#endif
+
   // We only care about time, not date
   dt.setYear(now.year());
   dt.setMonth(now.month());
   dt.setDay(now.day());
   
   long diff = dt.unixtime() - now.unixtime();
-//#if DBG
-//  Serial.print("diff: ");
-//  Serial.println(diff);
-//#endif
+  unsigned long cpu = (1000L * diff) + millis();   
+#if DBG
+  Serial.print("diff: ");
+  Serial.println(diff);
+  Serial.print("cpu: ");
+  Serial.println(cpu);
+#endif
   if ( diff > 0 )
-    return (1000L * diff) + millis();   
+    return cpu;
   else
     return 0;
 }

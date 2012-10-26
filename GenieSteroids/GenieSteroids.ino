@@ -14,7 +14,7 @@
 #include "HomeScreen.h"
 #include "LockManager.h"
 
-#define DBG 1
+#define DBG 0
 
 /***************************
   ANALOG PIN DEFINIDTIONS
@@ -100,15 +100,20 @@ LcdMenuHandler* currentHandler;
 GenericSoundHandler hdlrKeySound(CFG_KEY_SOUND);
 GenericSoundHandler hdlrBootSound(CFG_BOOT_SOUND);
 GenericSoundHandler hdlrOtherSound(CFG_OTHER_SOUND);
-DateHandler hdlrDate(CFG_UNUSED);
-TimeHandler hdlrTime(CFG_UNUSED);
+ChronodotDateHandler hdlrDate(CFG_UNUSED);
+ChronodotTimeHandler hdlrTime(CFG_UNUSED);
 IntervalHandler hdlrOpenDuration(CFG_OPEN_DURATION);
+TimeOfDayHandler hdlrLock1(CFG_LOCK1);
+TimeOfDayHandler hdlrUnlock1(CFG_UNLOCK1);
 
 LcdMenu menu(&lcd, LCD_COLS, LCD_ROWS);
 LcdMenuEntry mOpenDuration(MENU_1, "Close Timer", &hdlrOpenDuration);
-LcdMenuEntry mDate(MENU_2, "Set Date", &hdlrDate);
-LcdMenuEntry mTime(MENU_3, "Set Time", &hdlrTime);
-LcdMenuEntry mSounds(MENU_4, "Sounds", NULL);
+LcdMenuEntry mLock1(MENU_2, "Set Lock", &hdlrLock1);
+LcdMenuEntry mUnlock1(MENU_3, "Set Unlock", &hdlrUnlock1);
+LcdMenuEntry mDate(MENU_4, "Set Date", &hdlrDate);
+LcdMenuEntry mTime(MENU_5, "Set Time", &hdlrTime);
+LcdMenuEntry mSounds(MENU_6, "Sounds", NULL);
+
 LcdMenuEntry mKeySound(MENU_1, "Key Press", &hdlrKeySound);
 LcdMenuEntry mBootSound(MENU_2, "Boot Up", &hdlrBootSound);
 LcdMenuEntry mOtherSound(MENU_3, "Confirmations", &hdlrOtherSound);
@@ -175,7 +180,7 @@ void loop() {
 void lockMgrCallback(short msg, unsigned long countdown) {
 #if DBG
   Serial.print("MSG (rx): ");
-  Serial.print(msg);
+  Serial.println(msg);
 #endif
   switch ( msg ) {
   case MSG_LOCK_NOW:
@@ -242,12 +247,18 @@ void setupPrefs() {
   hdlrKeySound.setValue(prefs->readBoolean(hdlrKeySound.getIdent(), KEY_SOUND_DEFAULT));
   hdlrBootSound.setValue(prefs->readBoolean(hdlrBootSound.getIdent(), BOOT_SOUND_DEFAULT));
   hdlrOtherSound.setValue(prefs->readBoolean(hdlrOtherSound.getIdent(), OTHER_SOUND_DEFAULT));
-  hdlrOpenDuration.setValue(prefs->readInt(hdlrOpenDuration.getIdent(), OPEN_DURATION_DEFAULT));  
+  hdlrOpenDuration.setValue(prefs->readInt(hdlrOpenDuration.getIdent(), OPEN_DURATION_DEFAULT));
+  hdlrLock1.setValue(prefs->readLong(hdlrLock1.getIdent(), LOCK1_DEFAULT));  
+  hdlrUnlock1.setValue(prefs->readLong(hdlrUnlock1.getIdent(), UNLOCK1_DEFAULT));
+  
+  lockMgr->setEvents(hdlrLock1.getDateTime(), hdlrUnlock1.getDateTime());
 }
 
 void setupMenu() {
   menu.setHead(&mOpenDuration);
-  mOpenDuration.appendSibling(&mDate);
+  mOpenDuration.appendSibling(&mLock1);
+  mLock1.appendSibling(&mUnlock1);
+  mUnlock1.appendSibling(&mDate);
   mDate.appendSibling(&mTime);
   mTime.appendSibling(&mSounds);
   
@@ -435,9 +446,9 @@ void clearHandler(boolean confirmed) {
       case TYPE_LONG:
         prefs->writeLong(currentHandler->getIdent(), currentHandler->getValue());
         break;
-//      default:
 //#if DBG
-//    Serial.println("*** No value saved ***");
+//      default:
+//        Serial.println("*** No value saved ***");
 //#endif
     }
 
